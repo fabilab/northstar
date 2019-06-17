@@ -1,7 +1,7 @@
 # vim: fdm=indent
-#author:     Fabio Zanini
-#date:       17/06/19
-#content:    semiknn top level module
+# author:     Fabio Zanini
+# date:       17/06/19
+# content:    semiknn top level module
 __all__ = ['compute_graph']
 
 

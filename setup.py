@@ -1,5 +1,5 @@
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 
@@ -10,11 +10,11 @@ def read(fname):
 
 
 def update_version():
-    ver = read('VERSION')
+    ver = read('VERSION').rstrip('\n')
     fdn = os.path.join(os.path.dirname(__file__), 'semiknn')
     fn = os.path.join(fdn, 'version.py')
     with open(fn, 'wt') as f:
-        f.write('version = {:}'.format(ver))
+        f.write('version = "{:}"'.format(ver))
     return ver
 
 
@@ -27,8 +27,11 @@ setup(
     license="MIT",
     keywords="graph semi-supervised",
     url="https://github.com/iosonofabio/semiknn",
-    packages=['semiknn'],
-    long_description=read('README'),
+    packages=['semiknn'] + ['singlet.' + s for s in find_packages(where='semiknn')],
+    long_description='''
+    Semi-supervised knn graph construction
+
+    ''',
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Topic :: Utilities",

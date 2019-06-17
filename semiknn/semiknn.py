@@ -77,7 +77,7 @@ def compute_graph(matrix, sizes, n_fixed, k, threshold, n_pcs=20, metric='correl
     # 2. weighted covariance
     # This matrix has size L x L. Typically L ~ 500 << N, so the covariance
     # L x L is much smaller than N x N, hence it's fine
-    cov_w = matrix_w.T @ np.diag(weights) @ matrix_w.T
+    cov_w = matrix_w @ np.diag(weights) @ matrix_w.T
 
     # 3. PCA
     # lvects columns are the left singular vectors L x L (gene loadings)

@@ -21,4 +21,10 @@ def test_random_small():
             metric='correlation',
             )
 
+    assert(isinstance(neis, list))
+    assert(len(neis) == (N - n_fixed))
+    for nei in neis:
+        assert(isinstance(nei, list))
+        assert(len(nei) <= k)
+
     print(neis)

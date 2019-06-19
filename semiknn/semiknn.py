@@ -210,14 +210,20 @@ def compute_communities(
 
     L, N = matrix.shape
 
-    # Construct graph from edges
-    # FIXME: set larger weight for repeated edges
-    edges = set()
+    # Construct graph from weighted edges
+    # NOTE: in theory we should add self-weight to the fixed columns
+    from collections import Counter
+    edges_d = Counter()
     for i, neis in enumerate(neighbors):
         for n in neis:
-            edges.add(frozenset((i + n_fixed, n)))
-    edges = [tuple(e) for e in edges]
+            edges_d[frozenset((i + n_fixed, n))] += 1
+    edges = []
+    weights = []
+    for e, w in edges_d.items():
+        edges.append(tuple(e))
+        weights.append(w)
     g = ig.Graph(n=N, edges=edges, directed=False)
+    g.es['weight'] = weights
 
     # Compute communities with semi-supervised Leiden
     # NOTE: initial membership is singletons. For fixed colunms, that is fine

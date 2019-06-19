@@ -9,8 +9,16 @@ import numpy as np
 from sklearn.decomposition.pca import PCA
 
 
-def compute_graph(matrix, sizes, n_fixed, k, threshold, n_pcs=20, metric='correlation'):
-    '''Compute knn graph from a matrix with fixed nodes
+def compute_neighbors(
+        matrix,
+        sizes,
+        n_fixed,
+        k,
+        threshold,
+        n_pcs=20,
+        metric='correlation',
+        ):
+    '''Compute k nearest neighbors from a matrix with fixed nodes
 
     Args:
         matrix (L x N float ndarray): matrix of data. Rows are variables
@@ -96,11 +104,15 @@ def compute_graph(matrix, sizes, n_fixed, k, threshold, n_pcs=20, metric='correl
     # matrix has dimensions N1 x N
     rvects_free = rvects[n_fixed:]
     dmat = cdist(rvects_free, rvects, metric=metric)
+    dmax = dmat.max()
 
     # 5. calculate neighbors
     neighbors = [[] for n1 in range(N - n_fixed)]
     for i, drow in enumerate(dmat):
         nbi = neighbors[i]
+        # set distance to self as a high number, to avoid self
+        drow[i + n_fixed] = dmax + 1
+
         # we might not need it, but it's ok fast
         if k < len(drow):
             # Find largest k negative distances (k neighbors)
@@ -132,3 +144,99 @@ def compute_graph(matrix, sizes, n_fixed, k, threshold, n_pcs=20, metric='correl
                         ind = ind[:-1]
 
     return neighbors
+
+
+def compute_communities(
+        matrix,
+        sizes,
+        n_fixed,
+        k,
+        threshold,
+        n_pcs=20,
+        distance_metric='correlation',
+        clustering_metric='cpm',
+        resolution_parameter=0.001,
+        ):
+    '''Compute communities from a matrix with fixed nodes
+
+    Args:
+        matrix (L x N float ndarray): matrix of data. Rows are variables
+        (features/genes) and columns are observations (samples/cells).
+
+        sizes (N array of ints): number of observations (samples/cells)
+        compressed in each column.
+
+        n_fixed (int): number of columns that are fixed. These are the first
+        columns of the matrix. No knn for those columns is calculated.
+
+        k (int): number of neighbors
+
+        threshold (float): do not consider distances larger than this as
+        neighbors
+
+        n_pcs (int): number of principal components to keep in the weighted PCA
+
+        distance_metric (str or function): metric to use as distance. If a
+        string, it should be a metric accepted by scipy.spatial.distance.cdist.
+        If a function, it should accept a (M x N)  and a (M x N1) data matrices
+        as input and return a (N x N1) distance matrix. N includes both the
+        fixed and the free columns, whereas N1 = N - n_fixed only includes the
+        free columns.
+
+    Returns:
+        Array of int with size N - n_fixed with the community/cluster
+        membership of all columns except the first n_fixed ones.
+    '''
+    import inspect
+    import igraph as ig
+    import leidenalg
+
+    # Check whether this version of Leiden has fixed nodes support
+    opt = leidenalg.Optimiser()
+    sig = inspect.getfullargspec(opt.optimise_partition)
+    if 'fixed_nodes' not in sig.args:
+        raise ImportError('This version of the leidenalg module does not support fixed nodes. Please update to a later (development) version')
+
+
+    neighbors = compute_neighbors(
+            matrix=matrix,
+            sizes=sizes,
+            n_fixed=n_fixed,
+            k=k,
+            threshold=threshold,
+            n_pcs=n_pcs,
+            metric=distance_metric,
+            )
+
+    L, N = matrix.shape
+
+    # Construct graph from edges
+    # FIXME: set larger weight for repeated edges
+    edges = set()
+    for i, neis in enumerate(neighbors):
+        for n in neis:
+            edges.add(frozenset((i + n_fixed, n)))
+    edges = [tuple(e) for e in edges]
+    g = ig.Graph(n=N, edges=edges, directed=False)
+
+    # Compute communities with semi-supervised Leiden
+    # NOTE: initial membership is singletons. For fixed colunms, that is fine
+    # because they are already fixed. For free columns, let them choose during
+    # the clustering itself.
+    fixed_nodes = [True if i < n_fixed else False for i in range(N)]
+    if clustering_metric == 'cpm':
+        partition = leidenalg.CPMVertexPartition(
+                g,
+                resolution_parameter=resolution_parameter)
+    elif clustering_metric == 'modularity':
+        partition = leidenalg.ModularityVertexPartition(
+                g,
+                resolution_parameter=resolution_parameter)
+    else:
+        raise ValueError(
+            'clustering_metric not understood: {:}'.format(clustering_metric))
+
+    opt.optimise_partition(partition, fixed_nodes=fixed_nodes)
+    communities = partition.membership
+
+    return communities[n_fixed:]

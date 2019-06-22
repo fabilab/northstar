@@ -4,4 +4,5 @@
 # content:    semiknn entry point for import
 from .semiknn import compute_neighbors, compute_communities
 from .version import version
-__all__ = ['compute_neighbors', 'compute_communities', 'version']
+
+__all__ = ['SemiAnnotate', 'version']

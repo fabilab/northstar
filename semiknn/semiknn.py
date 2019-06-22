@@ -9,6 +9,56 @@ import numpy as np
 from sklearn.decomposition.pca import PCA
 
 
+def select_features(
+        matrix,
+        n_fixed,
+        n_features_per_cell_type=30,
+        n_features_overdispersed=500,
+        ):
+    '''Select features that define heterogeneity of the atlas and new data
+
+    Args:
+        matrix (L x N float ndarray): matrix of data. Rows are variables
+        (features/genes) and columns are observations (samples/cells).
+
+        n_fixed (int): number of columns that are fixed. These are the first
+        columns of the matrix. No knn for those columns is calculated.
+
+        n_features_per_cell_type (int): number of features marking each fixed
+        column (atlas cell type).
+
+        n_features_overdispersed (int): number of unbiased, overdispersed
+        features from the last N - n_fixed columns.
+
+    Returns:
+        ndarray of feature names.
+    '''
+    # Shorten arg names
+    nf1 = n_features_per_cell_type
+    nf2 = n_features_overdispersed
+
+    features = set()
+
+    # Atlas markers
+    if n_fixed > 1:
+        for icol in range(n_fixed):
+            ge1 = matrix[:, icol]
+            ge2 = (matrix[:, :n_fixed].sum(axis=1) - ge1) / (n_fixed - 1)
+            fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
+            markers = np.argpartition(fold_change, -nf1)[-nf1:]
+            features |= set(markers)
+
+    # Unbiased on new data
+    nd_mean = matrix[n_fixed:].mean(axis=1)
+    nd_var = matrix[n_fixed:].var(axis=1)
+    fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
+    overdispersed = np.argpartition(fano, -nf2)[-nf2:]
+    features |= set(overdispersed)
+
+    features = np.array(features)
+    return features
+
+
 def compute_neighbors(
         matrix,
         sizes,

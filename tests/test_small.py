@@ -3,7 +3,7 @@
 # date:       17/06/19
 # content:    Test the algorithm on same artificial data
 import numpy as np
-from semiknn import compute_neighbors, compute_communities
+from semiknn import SemiAnnotate
 
 
 def test_neighbors_random():
@@ -16,10 +16,13 @@ def test_neighbors_random():
     k = 5
     threshold = 0.8
 
-    neis = compute_neighbors(
-            matrix, sizes, n_fixed, k, threshold, n_pcs=n_pcs,
-            metric='correlation',
+    sa = SemiAnnotate(
+            matrix, sizes=sizes, n_fixed=n_fixed,
+            n_neighbors=k, threshold_neighborhood=threshold, n_pcs=n_pcs,
+            distance_metric='correlation',
             )
+    sa.compute_neighbors()
+    neis = sa.neighbors
 
     assert(isinstance(neis, list))
     assert(len(neis) == (N - n_fixed))
@@ -45,10 +48,13 @@ def test_neighbors_adhoc():
     k = 5
     threshold = 100
 
-    neis = compute_neighbors(
-            matrix, sizes, n_fixed, k, threshold, n_pcs=n_pcs,
-            metric='euclidean',
+    sa = SemiAnnotate(
+            matrix, sizes=sizes, n_fixed=n_fixed,
+            n_neighbors=k, threshold_neighborhood=threshold, n_pcs=n_pcs,
+            distance_metric='euclidean',
             )
+    sa.compute_neighbors()
+    neis = sa.neighbors
 
     for nei in neis[37:77]:
         assert(set(nei) & set([1] + list(range(40, 80))) == set(nei))
@@ -73,12 +79,16 @@ def test_clustering_adhoc():
     k = 8
     threshold = 100
 
-    communities = compute_communities(
-            matrix, sizes, n_fixed, k, threshold, n_pcs=n_pcs,
+    sa = SemiAnnotate(
+            matrix, sizes=sizes, n_fixed=n_fixed,
+            n_neighbors=k, threshold_neighborhood=threshold, n_pcs=n_pcs,
             distance_metric='euclidean',
             clustering_metric='cpm',
             resolution_parameter=0.0001,
             )
+    sa.compute_neighbors()
+    sa.compute_communities()
+    communities = sa.membership 
 
     assert(len(communities) == N - n_fixed)
     assert(len(set(communities[37:42])) == 1)

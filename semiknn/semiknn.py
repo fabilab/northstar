@@ -1,7 +1,7 @@
 # vim: fdm=indent
 # author:     Fabio Zanini
 # date:       17/06/19
-# content:    semiknn top level module
+# content:    SemiAnnotate top level module
 __all__ = ['SemiAnnotate']
 
 
@@ -107,8 +107,7 @@ class SemiAnnotate(object):
         overdispersed = np.argpartition(fano, -nf2)[-nf2:]
         features |= set(overdispersed)
 
-        features = np.array(features)
-        return features
+        self.matrix = self.matrix[features]
 
     def compute_neighbors(self):
         '''Compute k nearest neighbors from a matrix with fixed nodes
@@ -220,14 +219,15 @@ class SemiAnnotate(object):
                             nei_missing -= size
                             ind = ind[:-1]
 
-        return neighbors
+        self.neighbors = neighbors
 
     def compute_communities(self):
         '''Compute communities from a matrix with fixed nodes
 
         Returns:
-            Array of int with size N - n_fixed with the community/cluster
-            membership of all columns except the first n_fixed ones.
+            None, but SemiAnnotate.membership is set as an array of int with
+            size N - n_fixed with the community/cluster membership of all
+            columns except the first n_fixed ones.
         '''
         import inspect
         import igraph as ig
@@ -240,24 +240,10 @@ class SemiAnnotate(object):
             raise ImportError('This version of the leidenalg module does not support fixed nodes. Please update to a later (development) version')
 
         matrix = self.matrix
-        sizes = self.sizes
         n_fixed = self.n_fixed
-        k = self.n_neighbors
-        threshold = self.threshold_neighborhood
-        n_pcs = self.n_pcs
-        distance_metric = self.distance_metric
         clustering_metric = self.clustering_metric
         resolution_parameter = self.resolution_parameter
-
-        neighbors = self.compute_neighbors(
-                matrix=matrix,
-                sizes=sizes,
-                n_fixed=n_fixed,
-                k=k,
-                threshold=threshold,
-                n_pcs=n_pcs,
-                metric=distance_metric,
-                )
+        neighbors = self.neighbors
 
         L, N = matrix.shape
 
@@ -294,6 +280,31 @@ class SemiAnnotate(object):
                 'clustering_metric not understood: {:}'.format(clustering_metric))
 
         opt.optimise_partition(partition, fixed_nodes=fixed_nodes)
-        communities = partition.membership
+        membership = partition.membership
 
-        return communities[n_fixed:]
+        self.membership = membership[n_fixed:]
+
+    def __call__(
+            self,
+            select_features=True,
+            ):
+        '''Run SemiAnnotate
+
+        Args:
+            select_features (bool): Whether to select features or to use the
+            full data matrix. The latter is useful if a different feature
+            selection was performed outside of SemiAnnotate.
+
+        Returns:
+            None, but this instance of SemiAnnotate acquired the property
+            `membership` containing the cluster memberships (cell types) of the
+            columns except the first n_fixed. The first n_fixed columns are
+            assumes to have distinct memberships in the range [0, n_fixed - 1].
+        '''
+        # STEP 1
+        if select_features:
+            self.select_features()
+        self.compute_neighbors()
+
+        # STEP 2
+        self.compute_communities()

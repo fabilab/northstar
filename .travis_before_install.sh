@@ -2,9 +2,8 @@
 echo "Prepare interpreter"
 if [ $TRAVIS_OS_NAME == 'linux' ]; then
   echo "Installing deps for linux"
-  #sudo add-apt-repository ppa:nschloe/swig-backports -y
-  #sudo apt-get -qq update
-  #sudo apt-get install -y swig3.0
+  sudo add-apt-repository ppa:igraph/ppa
+  sudo apt-get -qq update
   sudo apt-get install igraph
 elif [ $TRAVIS_OS_NAME == 'osx' ]; then
   echo "Installing deps for OSX"
@@ -31,7 +30,7 @@ else
   exit 1
 fi
 
-echo "Installing dependencies"
+echo "Installing Python dependencies"
 ## setuptools < 18.0 has issues with Cython as a dependency
 #pip install Cython
 #if [ $? != 0 ]; then

@@ -5,6 +5,7 @@ if [ $TRAVIS_OS_NAME == 'linux' ]; then
   #sudo add-apt-repository ppa:nschloe/swig-backports -y
   #sudo apt-get -qq update
   #sudo apt-get install -y swig3.0
+  sudo apt-get install igraph
 elif [ $TRAVIS_OS_NAME == 'osx' ]; then
   echo "Installing deps for OSX"
   if [ $PYTHON_VERSION == "2.7" ]; then
@@ -22,6 +23,8 @@ elif [ $TRAVIS_OS_NAME == 'osx' ]; then
   # Use pip from conda
   conda install -y pip
   pip --version
+
+  conda install -c conda-forge -y igraph
 
 else
   echo "OS not recognized: $TRAVIS_OS_NAME"
@@ -42,3 +45,4 @@ pip install coveralls
 
 pip install numpy
 pip install scipy
+pip install igraph-python

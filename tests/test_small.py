@@ -3,7 +3,7 @@
 # date:       17/06/19
 # content:    Test the algorithm on same artificial data
 import numpy as np
-from semiknn import SemiAnnotate
+from semiannotate import SemiAnnotate
 
 
 def test_neighbors_random():

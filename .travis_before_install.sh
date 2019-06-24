@@ -46,4 +46,11 @@ pip install coveralls
 
 pip install numpy
 pip install scipy
-pip install leidenalg
+
+echo "Install python-igraph. It takes care of installing the igraph C library"
+pip install python-igraph
+
+echo "Install development version of leidenalg"
+git clone --single-branch --branch develop https://github.com/vtraag/leidenalg.git
+cd leidenalg
+python setup.py install

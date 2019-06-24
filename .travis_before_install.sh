@@ -2,9 +2,10 @@
 echo "Prepare interpreter"
 if [ $TRAVIS_OS_NAME == 'linux' ]; then
   echo "Installing deps for linux"
-  sudo add-apt-repository -y ppa:igraph/ppa
-  sudo apt-get -qq update
-  sudo apt-get install igraph
+  # NOTE: leidenalg installs igraph (in a somewhat messy way for now)
+  #sudo add-apt-repository -y ppa:igraph/ppa
+  #sudo apt-get -qq update
+  #sudo apt-get install igraph
 elif [ $TRAVIS_OS_NAME == 'osx' ]; then
   echo "Installing deps for OSX"
   if [ $PYTHON_VERSION == "2.7" ]; then
@@ -23,7 +24,8 @@ elif [ $TRAVIS_OS_NAME == 'osx' ]; then
   conda install -y pip
   pip --version
 
-  conda install -c conda-forge -y igraph
+  # NOTE: leidenalg installs igraph (in a somewhat messy way for now)
+  #conda install -c conda-forge -y igraph
 
 else
   echo "OS not recognized: $TRAVIS_OS_NAME"
@@ -44,4 +46,4 @@ pip install coveralls
 
 pip install numpy
 pip install scipy
-pip install igraph-python
+pip install leidenalg

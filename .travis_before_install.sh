@@ -2,7 +2,7 @@
 echo "Prepare interpreter"
 if [ $TRAVIS_OS_NAME == 'linux' ]; then
   echo "Installing deps for linux"
-  sudo add-apt-repository ppa:igraph/ppa
+  sudo add-apt-repository -y ppa:igraph/ppa
   sudo apt-get -qq update
   sudo apt-get install igraph
 elif [ $TRAVIS_OS_NAME == 'osx' ]; then

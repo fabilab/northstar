@@ -13,8 +13,14 @@ Atlas-based cell type annotation, with freedom to be queer.
 `semiannotate` is a Python package for single cell gene expression analysis. It computes cell clusters, which often represent cell types or cell states, similar to other
 algorithms such as Louvain and Leiden community detection (graph-based) and DBSCAN and HDBSCAN (distance-based). Unlike those methods, however, SemiAnnotate is
 semi-supervised by a previously annotated cell atlas. Given cluster/cell type annotations from the training atlas and a new, unannotated dataset, SemiAnnotate
-performs clustering of the new dataset allowing cells to either belong to an atlas cluster or to form new clusters. By combining the information provided by the atlas
-with the freedom to call new clusters, SemiAnnotate tries to combine the best of both unsupervised and supervised machine learning.
+performs clustering of the new dataset allowing cells to either belong to an atlas cluster or to form new clusters.
+
+## Rationale
+By combining the information provided by the atlas with the freedom to call new clusters, SemiAnnotate tries to combine the best of both unsupervised and
+supervised machine learning. Since tissues can be extremely heterogeneous, the freedom to discover new queer clusters at a reasonable computational cost
+is the main strength of semiannotate.
+
+Also, semiannotate was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride), so we couldn't abstain from showing our support.
 
 ## Installation
 For now, you can use the development version.

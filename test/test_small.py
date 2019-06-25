@@ -88,7 +88,7 @@ def test_clustering_adhoc():
             )
     sa.compute_neighbors()
     sa.compute_communities()
-    communities = sa.membership 
+    communities = sa.membership
 
     assert(len(communities) == N - n_fixed)
     assert(len(set(communities[37:42])) == 1)

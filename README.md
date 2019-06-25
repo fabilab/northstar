@@ -64,8 +64,7 @@ new_dataset = np.random.rand(L, Nnew).astype(np.float32)
 
 # Concatenate the two datasets
 matrix = np.hstrack([atlas_averages, new_dataset])
-N = matrix.shape[1]
-sizes = np.concatenate([atlas_sizes, np.ones(N, int)])
+sizes = np.concatenate([atlas_sizes, np.ones(Nnew, int)])
 
 # Initialize SemiAnnotate class
 sa = SemiAnnotate(

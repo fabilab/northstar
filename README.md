@@ -6,6 +6,7 @@
 [![Documentation Status](https://readthedocs.org/projects/semiannotate/badge/?version=master)](https://semiannotate.readthedocs.io/en/master)
 -->
 
+![Logo](logo.png)
 # semiannotate
 Atlas-based cell type annotation, with freedom to be queer.
 

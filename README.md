@@ -2,6 +2,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/iosonofabio/semiannotate/badge.svg?branch=master)](https://coveralls.io/github/iosonofabio/semiannotate?branch=master)
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![ReleaseVersion](https://img.shields.io/pypi/v/semiannotate.svg)](https://pypi.org/project/semiannotate/)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fsemiannotate.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fsemiannotate?ref=badge_shield)
 <!--
 [![Documentation Status](https://readthedocs.org/projects/semiannotate/badge/?version=master)](https://semiannotate.readthedocs.io/en/master)
 -->
@@ -99,3 +100,6 @@ to describe it.
 NOTE: The module leidenalg to perform graph-based clstering is released
 under the GLP3 license. You agree with those licensing terms if you use
 leidenalg within SemiAnnotate.
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fsemiannotate.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fsemiannotate?ref=badge_large)

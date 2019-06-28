@@ -101,8 +101,8 @@ class SemiAnnotate(object):
                 features |= set(markers)
 
         # Unbiased on new data
-        nd_mean = matrix[n_fixed:].mean(axis=1)
-        nd_var = matrix[n_fixed:].var(axis=1)
+        nd_mean = matrix[:, n_fixed:].mean(axis=1)
+        nd_var = matrix[:, n_fixed:].var(axis=1)
         fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
         overdispersed = np.argpartition(fano, -nf2)[-nf2:]
         features |= set(overdispersed)

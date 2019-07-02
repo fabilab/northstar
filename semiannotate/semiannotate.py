@@ -221,7 +221,10 @@ class SemiAnnotate(object):
 
         self.neighbors = neighbors
 
-    def compute_communities(self):
+    def compute_communities(self,
+        _self_loops=True,
+        _node_sizes=True,
+        ):
         '''Compute communities from a matrix with fixed nodes
 
         Returns:
@@ -254,13 +257,27 @@ class SemiAnnotate(object):
         for i, neis in enumerate(neighbors):
             for n in neis:
                 edges_d[frozenset((i + n_fixed, n))] += 1
+
+        # Self loops for atlas nodes, considered maximally connected knns
+        if _self_loops:
+            for i in range(n_fixed):
+                edges_d[(i, i)] = neighbors * self.sizes[i]
+
         edges = []
         weights = []
         for e, w in edges_d.items():
             edges.append(tuple(e))
             weights.append(w)
         g = ig.Graph(n=N, edges=edges, directed=False)
+
+        # Edge wrights
         g.es['weight'] = weights
+
+        # Node weights
+        if _node_sizes:
+            g.vs['node_size'] = [int(s) for s in self.sizes]
+        else:
+            g.vs['node_size'] = [1] * N
 
         # Compute communities with semi-supervised Leiden
         # NOTE: initial membership is singletons. For fixed colunms, that is fine
@@ -270,11 +287,15 @@ class SemiAnnotate(object):
         if clustering_metric == 'cpm':
             partition = leidenalg.CPMVertexPartition(
                     g,
-                    resolution_parameter=resolution_parameter)
+                    resolution_parameter=resolution_parameter,
+                    node_sizes='node_size',
+                    )
         elif clustering_metric == 'modularity':
             partition = leidenalg.ModularityVertexPartition(
                     g,
-                    resolution_parameter=resolution_parameter)
+                    resolution_parameter=resolution_parameter,
+                    node_sizes='node_size',
+                    )
         else:
             raise ValueError(
                 'clustering_metric not understood: {:}'.format(clustering_metric))

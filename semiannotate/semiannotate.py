@@ -259,9 +259,11 @@ class SemiAnnotate(object):
                 edges_d[frozenset((i + n_fixed, n))] += 1
 
         # Self loops for atlas nodes, considered maximally connected knns
+        # This is slightly less than kn because mutual nearest neighbors
+        # recycle edges, so the actual expectation is kn (1 - k/2n).
         if _self_loops:
             for i in range(n_fixed):
-                edges_d[(i, i)] = neighbors * self.sizes[i]
+                edges_d[(i, i)] = neighbors * self.sizes[i] * (1 - 0.5 * neighbors / self.sizes[i])
 
         edges = []
         weights = []

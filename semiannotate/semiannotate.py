@@ -106,6 +106,7 @@ class SemiAnnotate(object):
         fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
         overdispersed = np.argpartition(fano, -nf2)[-nf2:]
         features |= set(overdispersed)
+        features = list(features)
 
         self.matrix = self.matrix[features]
 

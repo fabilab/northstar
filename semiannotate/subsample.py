@@ -133,7 +133,7 @@ class Subsample(object):
 
 
         The algorithm proceeds as follows:
-        1. whiten the matrix using weights (sizes), i.e. subtract the mean along
+        1. whiten the matrix, i.e. subtract the mean along
         the observation axis (N) and divide by the standard dev along the same axis
         2. calculate the weighted covariance matrix
         3. calculate normal PCA on that matrix
@@ -145,7 +145,6 @@ class Subsample(object):
         from scipy.spatial.distance import pdist, squareform
 
         matrix = self.matrix
-        sizes = self.sizes
         n_fixed = self.n_fixed
         k = self.n_neighbors
         n_pcs = self.n_pcs
@@ -154,8 +153,6 @@ class Subsample(object):
 
         # Test input arguments
         L, N = matrix.shape
-        if len(sizes) != N:
-            raise ValueError('Matrix and sizes dimensions do not match')
         if n_fixed >= N:
             raise ValueError('n_fixed larger or equal matrix number of columns')
         if n_pcs > min(L, N):

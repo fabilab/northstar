@@ -158,8 +158,12 @@ class Subsample(object):
         if n_pcs > min(L, N):
             raise ValueError('n_pcs greater than smaller matrix dimension, those eigenvalues are zero')
 
+        # 0. take log
+        matrix = np.log10(matrix + 0.1)
+
         # 1. whiten
         Xnorm = ((matrix.T - matrix.mean(axis=1)) / matrix.std(axis=1, ddof=0)).T
+
         # take care of non-varying components
         Xnorm[np.isnan(Xnorm)] = 0
 
@@ -247,7 +251,6 @@ class Subsample(object):
         del tmp
 
         # Compute communities with semi-supervised Leiden
-        fixed_nodes = [True if i < n_fixed else False for i in range(N)]
         if clustering_metric == 'cpm':
             partition = leidenalg.CPMVertexPartition(
                     g,
@@ -264,6 +267,7 @@ class Subsample(object):
             raise ValueError(
                 'clustering_metric not understood: {:}'.format(clustering_metric))
 
+        fixed_nodes = [int(i < n_fixed) for i in range(N)]
         opt.optimise_partition(partition, fixed_nodes=fixed_nodes)
         membership = partition.membership
 

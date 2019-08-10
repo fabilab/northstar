@@ -127,6 +127,172 @@ class SemiAnnotate(object):
 
 
         The algorithm proceeds as follows:
+        1. whiten the matrix, i.e. subtract the mean along
+        the observation axis (N) and divide by the standard dev along the same axis
+        2. calculate the weighted covariance matrix
+        3. calculate normal PCA on that matrix
+        4. calculate the distance matrix of the N1 free columns to all N columns
+        5. for each free columnsm, calculate the k neighbors from the distance
+        matrix, checking for threshold
+        '''
+        from sklearn.decomposition import PCA
+        from scipy.spatial.distance import pdist, squareform
+
+        matrix = self.matrix
+        n_fixed = self.n_fixed
+        k = self.n_neighbors
+        n_pcs = self.n_pcs
+        metric = self.distance_metric
+        threshold = self.threshold_neighborhood
+
+        # Test input arguments
+        L, N = matrix.shape
+        if n_fixed >= N:
+            raise ValueError('n_fixed larger or equal matrix number of columns')
+        if n_pcs > min(L, N):
+            raise ValueError('n_pcs greater than smaller matrix dimension, those eigenvalues are zero')
+
+        # expand matrix to make space for duplicate_columns
+        N = int(sum(self.sizes))
+        matrix = np.zeros((L, N), dtype=self.matrix.dtype)
+        atlas_annotations = []
+        i = 0
+        for isi in range(n_fixed):
+            for ii in range(int(self.sizes[isi])):
+                matrix[:, i] = self.matrix[:, isi]
+                atlas_annotations.append(isi)
+                i += 1
+        matrix[:, i:] = self.matrix[:, n_fixed:]
+        self.matrix_expanded = matrix
+        self.atlas_annotations = atlas_annotations
+        self.atlas_annotations_unique = np.unique(atlas_annotations)
+
+        # 0. take log
+        matrix = np.log10(matrix + 0.1)
+
+        # 1. whiten
+        Xnorm = ((matrix.T - matrix.mean(axis=1)) / matrix.std(axis=1, ddof=0)).T
+
+        # take care of non-varying components
+        Xnorm[np.isnan(Xnorm)] = 0
+
+        # 2. PCA
+        pca = PCA(n_components=n_pcs)
+        # rvects columns are the right singular vectors
+        rvects = pca.fit_transform(Xnorm.T)
+
+        # 4. calculate distance matrix
+        # rvects is N x n_pcs. Let us calculate the end that includes only the free
+        # observations and then call cdist which kills the columns. The resulting
+        # matrix has dimensions N1 x N
+        dmat = squareform(pdist(rvects, metric=metric))
+        dmax = dmat.max()
+
+        # 5. calculate neighbors
+        neighbors = [[] for n1 in range(N)]
+        for i, drow in enumerate(dmat):
+            nbi = neighbors[i]
+            # set distance to self as a high number, to avoid self
+            drow[i] = dmax + 1
+
+            # Find largest k negative distances (k neighbors)
+            ind = np.argpartition(-drow, -k)[-k:]
+
+            # Discard the ones beyond threshold
+            ind = ind[drow[ind] <= threshold]
+
+            # Indices are not sorted within ind, we sort them to help
+            # debugging even though it is not needed
+            ind = ind[np.argsort(drow[ind])][::-1]
+
+            nbi.extend(list(ind))
+
+        self.neighbors = neighbors
+
+    def compute_communities(self):
+        '''Compute communities from a matrix with fixed nodes
+
+        Returns:
+            None, but SemiAnnotate.membership is set as an array of int with
+            size N - n_fixed with the community/cluster membership of all
+            columns except the first n_fixed ones.
+        '''
+        import inspect
+        import igraph as ig
+        import leidenalg
+
+        # Check whether this version of Leiden has fixed nodes support
+        opt = leidenalg.Optimiser()
+        sig = inspect.getfullargspec(opt.optimise_partition)
+        if 'fixed_nodes' not in sig.args:
+            raise ImportError('This version of the leidenalg module does not support fixed nodes. Please update to a later (development) version')
+
+        matrix = self.matrix_expanded
+        aa = self.atlas_annotations
+        aau = self.atlas_annotations_unique
+        n_fixed = len(aa)
+        clustering_metric = self.clustering_metric
+        resolution_parameter = self.resolution_parameter
+        neighbors = self.neighbors
+
+        L, N = matrix.shape
+
+        # Construct graph from the lists of neighbors
+        edges_d = set()
+        for i, neis in enumerate(neighbors):
+            for n in neis:
+                edges_d.add(frozenset((i, n)))
+
+        edges = [tuple(e) for e in edges_d]
+        g = ig.Graph(n=N, edges=edges, directed=False)
+
+        # NOTE: initial membership is singletons except for atlas nodes, which
+        # get the membership they have.
+        tmp = set(aau)
+        initial_membership = list(aa)
+        i = 0
+        for j in range(N - n_fixed):
+            while i in tmp:
+                i += 1
+            initial_membership.append(i)
+            tmp.add(i)
+            i += 1
+        del tmp
+
+        # Compute communities with semi-supervised Leiden
+        if clustering_metric == 'cpm':
+            partition = leidenalg.CPMVertexPartition(
+                    g,
+                    resolution_parameter=resolution_parameter,
+                    initial_membership=initial_membership,
+                    )
+        elif clustering_metric == 'modularity':
+            partition = leidenalg.ModularityVertexPartition(
+                    g,
+                    resolution_parameter=resolution_parameter,
+                    initial_membership=initial_membership,
+                    )
+        else:
+            raise ValueError(
+                'clustering_metric not understood: {:}'.format(clustering_metric))
+
+        fixed_nodes = [int(i < n_fixed) for i in range(N)]
+        opt.optimise_partition(partition, fixed_nodes=fixed_nodes)
+        membership = partition.membership
+
+        self.membership = membership[n_fixed:]
+
+    def compute_neighbors_unsafe(self):
+        '''Compute k nearest neighbors from a matrix with fixed nodes
+
+        Returns:
+            list of lists with the first k or less indices of the neighbors for
+            each free column. The length is N - n_fixed. For each now, there are
+            less than k entries if no other column within the distance threshold
+            were found, or if N < k.
+
+
+        The algorithm proceeds as follows:
         1. whiten the matrix using weights (sizes), i.e. subtract the mean along
         the observation axis (N) and divide by the standard dev along the same axis
         2. calculate the weighted covariance matrix
@@ -155,10 +321,13 @@ class SemiAnnotate(object):
         if n_pcs > min(L, N):
             raise ValueError('n_pcs greater than smaller matrix dimension, those eigenvalues are zero')
 
+        # 0. take log
+        matrix = np.log10(matrix + 0.1)
+
         # 1. whiten
         weights = 1.0 * sizes / sizes.sum()
         mean_w = matrix @ weights
-        var_w = (matrix**2) @ weights
+        var_w = ((matrix.T - mean_w)**2).T @ weights
         std_w = np.sqrt(var_w)
         matrix_w = ((matrix.T - mean_w) / std_w).T
 
@@ -188,6 +357,9 @@ class SemiAnnotate(object):
         rvects_free = rvects[n_fixed:]
         dmat = cdist(rvects_free, rvects, metric=metric)
         dmax = dmat.max()
+
+        # FIXME
+        self.rvects_free = rvects_free
 
         # 5. calculate neighbors
         neighbors = [[] for n1 in range(N - n_fixed)]
@@ -226,6 +398,37 @@ class SemiAnnotate(object):
 
         self.neighbors = neighbors
 
+        # FIXME: just duplicate those columns to calculate the PCA
+        N2 = N + 19 * n_fixed
+        m2 = np.zeros((L, N2), dtype=matrix.dtype)
+        for i in range(n_fixed):
+            for ii in range(20):
+                m2[:, 20 * i + ii] = matrix[:, i]
+        m2[:, 20 * n_fixed:] = matrix[:, n_fixed:]
+        from sklearn.decomposition import PCA
+        Xnorm = ((m2.T - m2.mean(axis=1)) / m2.std(axis=1, ddof=0)).T
+        Xnorm[np.isnan(Xnorm)] = 0
+        pca = PCA(n_components=n_pcs)
+        rvects2 = pca.fit_transform(Xnorm.T)
+        dmat2 = cdist(rvects2, rvects2, metric=metric)
+        dmax2 = dmat2.max()
+        self.neighbors = []
+        for i in range(20 * n_fixed, N2):
+            dmat2[i, i] = dmax2 + 1
+            drow = dmat2[i]
+            ind = np.argpartition(-drow, -k)[-k:]
+            ind = ind[drow[ind] <= threshold]
+            ind = ind[np.argsort(drow[ind])][::-1]
+            for ii, idx in enumerate(ind):
+                if idx < 20 * n_fixed:
+                    ind[ii] = idx // 20
+                else:
+                    ind[ii] = idx - (19 * n_fixed)
+            self.neighbors.append(list(ind))
+        self.rvects_free = rvects2[20 * n_fixed:]
+
+        #import ipdb; ipdb.set_trace()
+
         # FIXME: add neighbors from atlas out
         self.katlas = []
         kk = 5
@@ -235,7 +438,7 @@ class SemiAnnotate(object):
             ind = np.argpartition(-dcol, -kk)[-kk:] + n_fixed
             self.katlas.append(list(ind))
 
-    def compute_communities(
+    def compute_communities_unsafe(
         self,
         _self_loops=True,
         _node_sizes=True,
@@ -295,6 +498,10 @@ class SemiAnnotate(object):
 
         # Edge weights
         g.es['weight'] = weights
+
+        # FIXME
+        self.edges = edges
+        self.edge_weights = weights
 
         # Node weights
         if _node_sizes:

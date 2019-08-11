@@ -301,7 +301,6 @@ class SemiAnnotate(object):
         5. for each free columnsm, calculate the k neighbors from the distance
         matrix, checking for threshold
         '''
-        from scipy.sparse.linalg import eigsh
         from scipy.spatial.distance import cdist
 
         matrix = self.matrix
@@ -329,26 +328,28 @@ class SemiAnnotate(object):
         mean_w = matrix @ weights
         var_w = ((matrix.T - mean_w)**2).T @ weights
         std_w = np.sqrt(var_w)
-        matrix_w = ((matrix.T - mean_w) / std_w).T
+        Xnorm = ((matrix.T - mean_w) / std_w).T
 
         # take care of non-varying components
-        matrix_w[np.isnan(matrix_w)] = 0
+        Xnorm[np.isnan(Xnorm)] = 0
 
         # 2. weighted covariance
         # This matrix has size L x L. Typically L ~ 500 << N, so the covariance
         # L x L is much smaller than N x N, hence it's fine
-        cov_w = matrix_w @ np.diag(weights) @ matrix_w.T
+        cov_w = np.cov(Xnorm, fweights=sizes)
 
         # 3. PCA
-        # lvects columns are the left singular vectors L x L (gene loadings)
-        evals, lvects = eigsh(cov_w, k=n_pcs)
+        # rvects columns are the right singular vectors
+        evals, evects = np.linalg.eig(cov_w)
+        # sort by decreasing eigenvalue (explained variance) and truncate
+        ind = evals.argsort()[::-1][:n_pcs]
+        # NOTE: we do not actually need the eigenvalues anymore
+        lvects = evects.T[ind]
 
-        # calculate the right singular vectors N x N given the left singular
-        # vectors and the singular values svals = np.sqrt(evals)
+        # calculate right singular vectors given the left singular vectors
         # NOTE: this is true even if we truncated the PCA via n_pcs << L
         # rvects columns are the right singular vectors
-        svals = np.sqrt(evals)
-        rvects = matrix_w.T @ lvects @ np.diag(1.0 / svals)
+        rvects = (lvects @ Xnorm).T
 
         # 4. calculate distance matrix
         # rvects is N x n_pcs. Let us calculate the end that includes only the free

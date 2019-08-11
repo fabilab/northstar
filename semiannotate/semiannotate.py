@@ -351,23 +351,29 @@ class SemiAnnotate(object):
         # rvects columns are the right singular vectors
         rvects = (lvects @ Xnorm).T
 
-        # 4. calculate distance matrix
-        # rvects is N x n_pcs. Let us calculate the end that includes only the free
-        # observations and then call cdist which kills the columns. The resulting
-        # matrix has dimensions N1 x N
-        rvects_free = rvects[n_fixed:]
-        dmat = cdist(rvects_free, rvects, metric=metric)
-        dmax = dmat.max()
+        # expand embedded vectors to account for sizes
+        # NOTE: this could be done by carefully tracking multiplicities
+        # in the neighborhood calculation, but it's not worth it: the
+        # amount of overhead memory used here is small because only a few
+        # principal components are used
+        Ne = np.sum(sizes)
+        rvectse = np.empty((Ne, n_pcs))
+        i = 0
+        for isi, size in enumerate(sizes):
+            for j in size:
+                rvectse[i] = rvects[isi]
+                i += 1
 
-        # FIXME
-        self.rvects_free = rvects_free
+        # 4-5. calculate distance matrix and neighbors
+        # we do it row by row, it costs a bit in terms of runtime but
+        # has huge savings in terms of memory since we don't need the square
+        # distance matrix
+        neighbors = []
+        for i in range(Ne):
+            drow = cdist(rvectse[[i]], rvectse, metric=metric)
 
-        # 5. calculate neighbors
-        neighbors = [[] for n1 in range(N - n_fixed)]
-        for i, drow in enumerate(dmat):
-            nbi = neighbors[i]
             # set distance to self as a high number, to avoid self
-            drow[i + n_fixed] = dmax + 1
+            drow[i] = drow.max() + 1
 
             # Find largest k negative distances (k neighbors)
             ind = np.argpartition(-drow, -k)[-k:]
@@ -379,65 +385,9 @@ class SemiAnnotate(object):
             # in descending order by distance (more efficient in the next step)
             ind = ind[np.argsort(drow[ind])][::-1]
 
-            # Take first k, keeping multiplicities in mind
-            nei_missing = k
-            while (nei_missing != 0) and (len(ind)):
-                j = ind[-1]
-                if j >= n_fixed:
-                    nbi.append(j)
-                    ind = ind[:-1]
-                    nei_missing -= 1
-                else:
-                    size = int(sizes[j])
-                    if size >= nei_missing:
-                        nbi.extend([j] * nei_missing)
-                        nei_missing = 0
-                    else:
-                        nbi.extend([j] * size)
-                        nei_missing -= size
-                        ind = ind[:-1]
+            neighbors.append(list(ind))
 
         self.neighbors = neighbors
-
-        # FIXME: just duplicate those columns to calculate the PCA
-        N2 = N + 19 * n_fixed
-        m2 = np.zeros((L, N2), dtype=matrix.dtype)
-        for i in range(n_fixed):
-            for ii in range(20):
-                m2[:, 20 * i + ii] = matrix[:, i]
-        m2[:, 20 * n_fixed:] = matrix[:, n_fixed:]
-        from sklearn.decomposition import PCA
-        Xnorm = ((m2.T - m2.mean(axis=1)) / m2.std(axis=1, ddof=0)).T
-        Xnorm[np.isnan(Xnorm)] = 0
-        pca = PCA(n_components=n_pcs)
-        rvects2 = pca.fit_transform(Xnorm.T)
-        dmat2 = cdist(rvects2, rvects2, metric=metric)
-        dmax2 = dmat2.max()
-        self.neighbors = []
-        for i in range(20 * n_fixed, N2):
-            dmat2[i, i] = dmax2 + 1
-            drow = dmat2[i]
-            ind = np.argpartition(-drow, -k)[-k:]
-            ind = ind[drow[ind] <= threshold]
-            ind = ind[np.argsort(drow[ind])][::-1]
-            for ii, idx in enumerate(ind):
-                if idx < 20 * n_fixed:
-                    ind[ii] = idx // 20
-                else:
-                    ind[ii] = idx - (19 * n_fixed)
-            self.neighbors.append(list(ind))
-        self.rvects_free = rvects2[20 * n_fixed:]
-
-        #import ipdb; ipdb.set_trace()
-
-        # FIXME: add neighbors from atlas out
-        self.katlas = []
-        kk = 5
-        for i in range(n_fixed):
-            dcol = dmat[:, i]
-            # Find largest k negative distances (kk neighbors) out of the atlas
-            ind = np.argpartition(-dcol, -kk)[-kk:] + n_fixed
-            self.katlas.append(list(ind))
 
     def compute_communities_unsafe(
         self,
@@ -462,79 +412,60 @@ class SemiAnnotate(object):
             raise ImportError('This version of the leidenalg module does not support fixed nodes. Please update to a later (development) version')
 
         matrix = self.matrix
+        sizes = self.sizes
         n_fixed = self.n_fixed
         clustering_metric = self.clustering_metric
         resolution_parameter = self.resolution_parameter
         neighbors = self.neighbors
-        k = self.n_neighbors
 
         L, N = matrix.shape
+        n_fixede = np.sum(sizes[:n_fixed])
+        Ne = np.sum(sizes)
 
-        # Construct graph from weighted edges
-        # NOTE: in theory we should add self-weight to the fixed columns
-        from collections import Counter
-        edges_d = Counter()
+        # Construct graph from the lists of neighbors
+        edges_d = set()
         for i, neis in enumerate(neighbors):
             for n in neis:
-                edges_d[frozenset((i + n_fixed, n))] += 1
+                edges_d.add(frozenset((i, n)))
 
-        # FIXME: add edges from the atlas out
-        for i, neis in enumerate(self.katlas):
-            for n in neis:
-                edges_d[frozenset((i, n))] += self.sizes[i]
-
-        # Self loops for atlas nodes, considered maximally connected knns
-        # This is slightly less than kn because mutual nearest neighbors
-        # recycle edges, so the actual expectation is kn (1 - k/2n).
-        if _self_loops:
-            for i in range(n_fixed):
-                edges_d[(i, i)] = k * self.sizes[i] * (1 - 0.5 * k / self.sizes[i])
-
-        edges = []
-        weights = []
-        for e, w in edges_d.items():
-            edges.append(tuple(e))
-            weights.append(w)
+        edges = [tuple(e) for e in edges_d]
         g = ig.Graph(n=N, edges=edges, directed=False)
 
-        # Edge weights
-        g.es['weight'] = weights
+        # NOTE: initial membership is singletons except for atlas nodes, which
+        # get the membership they have.
+        initial_membership = []
+        for isi in range(N):
+            if isi < n_fixed:
+                for ii in range(int(self.sizes[isi])):
+                    initial_membership.append(isi)
+            else:
+                initial_membership.append(isi)
 
-        # FIXME
-        self.edges = edges
-        self.edge_weights = weights
-
-        # Node weights
-        if _node_sizes:
-            g.vs['node_size'] = [int(s) for s in self.sizes]
-        else:
-            g.vs['node_size'] = [1] * N
+        if len(initial_membership) != Ne:
+            raise ValueError('initial_membership list has wrong length!')
 
         # Compute communities with semi-supervised Leiden
-        # NOTE: initial membership is singletons. For fixed colunms, that is fine
-        # because they are already fixed. For free columns, let them choose during
-        # the clustering itself.
-        fixed_nodes = [True if i < n_fixed else False for i in range(N)]
         if clustering_metric == 'cpm':
             partition = leidenalg.CPMVertexPartition(
                     g,
                     resolution_parameter=resolution_parameter,
-                    node_sizes='node_size',
+                    initial_membership=initial_membership,
                     )
         elif clustering_metric == 'modularity':
             partition = leidenalg.ModularityVertexPartition(
                     g,
                     resolution_parameter=resolution_parameter,
-                    node_sizes='node_size',
+                    initial_membership=initial_membership,
                     )
         else:
             raise ValueError(
                 'clustering_metric not understood: {:}'.format(clustering_metric))
 
+        fixed_nodes = [int(i < n_fixede) for i in range(Ne)]
         opt.optimise_partition(partition, fixed_nodes=fixed_nodes)
         membership = partition.membership
 
-        self.membership = membership[n_fixed:]
+        self.membership = membership[n_fixede:]
 
     def __call__(
             self,

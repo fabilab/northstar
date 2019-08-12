@@ -6,4 +6,4 @@ from .semiannotate import SemiAnnotate
 from .subsample import Subsample
 from .version import version
 
-__all__ = ['SemiAnnotate', 'Subsample', 'version']
+__all__ = ['SemiAnnotate', 'Subsample', 'fetch_atlas', 'version']

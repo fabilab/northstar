@@ -115,6 +115,15 @@ class Averages(object):
             if (self.atlas['counts'].columns != self.atlas['number_of_cells'].index).any():
                 raise ValueError('atlas counts and number_of_cells must have the same cells')
 
+        nf1 = self.n_features_per_cell_type
+        if not isinstance(nf1, int):
+            raise ValueError('n_features_per_cell_type must be an int >= 0')
+        nf2 = self.n_features_overdispersed
+        if not isinstance(nf1, int):
+            raise ValueError('n_features_overdispersed must be an int >= 0')
+        if (nf1 < 1) and (nf2 < 1):
+            raise ValueError('No features selected')
+
     def merge_atlas_newdata(self):
         '''Merge the averaged atlas data and the new data
 
@@ -168,7 +177,7 @@ class Averages(object):
         features = set()
 
         # Atlas markers
-        if n_fixed > 1:
+        if (nf1 > 0) and (n_fixed > 1):
             for icol in range(n_fixed):
                 ge1 = matrix[:, icol]
                 ge2 = (matrix[:, :n_fixed].sum(axis=1) - ge1) / (n_fixed - 1)
@@ -177,11 +186,13 @@ class Averages(object):
                 features |= set(markers)
 
         # Unbiased on new data
-        nd_mean = matrix[:, n_fixed:].mean(axis=1)
-        nd_var = matrix[:, n_fixed:].var(axis=1)
-        fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
-        overdispersed = np.argpartition(fano, -nf2)[-nf2:]
-        features |= set(overdispersed)
+        if nf2 > 0:
+            nd_mean = matrix[:, n_fixed:].mean(axis=1)
+            nd_var = matrix[:, n_fixed:].var(axis=1)
+            fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
+            overdispersed = np.argpartition(fano, -nf2)[-nf2:]
+            features |= set(overdispersed)
+
         features = list(features)
 
         self.features_selected = features

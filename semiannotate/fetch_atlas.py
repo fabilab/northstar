@@ -54,9 +54,18 @@ class AtlasFetcher(object):
         finally:
             os.remove(path)
 
+        # Package into dataframes
+        counts = pd.DataFrame(
+            data=matrix,
+            index=features,
+            columns=cell_types,
+            )
+        number_of_cells = pd.Series(
+            data=n_of_cells,
+            index=cell_types,
+            )
+
         return {
-            'matrix': matrix,
-            'cell_types': cell_types,
-            'number_of_cells': n_of_cells,
-            'features': features,
+            'counts': counts,
+            'number_of_cells': number_of_cells,
             }

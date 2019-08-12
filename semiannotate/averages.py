@@ -17,6 +17,7 @@ class Averages(object):
             self,
             atlas,
             new_data,
+            n_cells_per_type=None,
             n_features_per_cell_type=30,
             n_features_overdispersed=500,
             n_pcs=20,
@@ -44,6 +45,9 @@ class Averages(object):
 
             new_data (pandas DataFrame): the new data to be clustered. The
             data frame must have features as rows and cellnames as columns.
+
+            n_cells_per_type (None or int): if None, use the number of cells
+            per type from the atlas. Else, fix it to this number for all types.
 
             n_features_per_cell_type (int): number of features marking each fixed
             column (atlas cell type).
@@ -79,6 +83,7 @@ class Averages(object):
 
         self.atlas = atlas
         self.new_data = new_data
+        self.n_cells_per_type = n_cells_per_type
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
         self.n_pcs = n_pcs
@@ -90,9 +95,6 @@ class Averages(object):
         self.normalize_counts = normalize_counts
 
     def _check_init_arguments(self):
-        if self.n_neighbors >= self.matrix.shape[1] - 1:
-            raise ValueError('n_neighbors is too high so the similarity graph is fully connected')
-
         if not isinstance(self.new_data, pd.DataFrame):
             raise ValueError('new_data should be a pandas DataFrame with features as rows')
 
@@ -133,23 +135,23 @@ class Averages(object):
         features = np.intersect1d(atlas_features, new_data_features)
 
         self.features_all = features
-        self.n_fixed = self.atlas['counts'].shape[1]
+        self.n_fixed = n_fixed = self.atlas['counts'].shape[1]
         self.cell_types = self.atlas['counts'].columns.values
 
         L = len(features)
-        N = self.n_fixed + self.new_data.shape[1]
+        N = n_fixed + self.new_data.shape[1]
         matrix = np.empty((L, N), dtype=np.float32)
-        for i in range(N):
-            if i < self.n_fixed:
-                matrix[:, i] = self.atlas['counts'].iloc[i].loc[features].values
-            else:
-                matrix[:, i] = self.new_data.iloc[i - self.n_fixed].loc[features].values
-            if self.normalize_counts:
-                matrix[:, i] *= 1e6 / matrix[:, i].sum()
+        matrix[:, :n_fixed] = self.atlas['counts'].loc[features].values
+        matrix[:, n_fixed:] = self.new_data.loc[features].values
+        if self.normalize_counts:
+            matrix *= 1e6 / matrix.sum(axis=0)
         self.matrix = matrix
 
         self.sizes = np.ones(N, np.float32)
-        self.sizes[:self.n_fixed] = self.atlas['number_of_cells'].values.astype(np.float32)
+        if self.n_cells_per_type is not None:
+            self.sizes[:self.n_fixed] *= self.n_cells_per_type
+        else:
+            self.sizes[:self.n_fixed] = self.atlas['number_of_cells'].values.astype(np.float32)
 
     def select_features(self):
         '''Select features that define heterogeneity of the atlas and new data
@@ -260,11 +262,11 @@ class Averages(object):
         # in the neighborhood calculation, but it's not worth it: the
         # amount of overhead memory used here is small because only a few
         # principal components are used
-        Ne = np.sum(sizes)
-        rvectse = np.empty((Ne, n_pcs))
+        Ne = int(np.sum(sizes))
+        rvectse = np.empty((Ne, n_pcs), np.float32)
         i = 0
         for isi, size in enumerate(sizes):
-            for j in size:
+            for j in range(int(size)):
                 rvectse[i] = rvects[isi]
                 i += 1
 
@@ -274,7 +276,7 @@ class Averages(object):
         # distance matrix
         neighbors = []
         for i in range(Ne):
-            drow = cdist(rvectse[[i]], rvectse, metric=metric)
+            drow = cdist(rvectse[[i]], rvectse, metric=metric)[0]
 
             # set distance to self as a high number, to avoid self
             drow[i] = drow.max() + 1
@@ -319,8 +321,8 @@ class Averages(object):
         neighbors = self.neighbors
 
         L, N = matrix.shape
-        n_fixede = np.sum(sizes[:n_fixed])
-        Ne = np.sum(sizes)
+        n_fixede = int(np.sum(sizes[:n_fixed]))
+        Ne = int(np.sum(sizes))
 
         # Construct graph from the lists of neighbors
         edges_d = set()
@@ -365,7 +367,13 @@ class Averages(object):
         opt.optimise_partition(partition, fixed_nodes=fixed_nodes)
         membership = partition.membership
 
-        self.membership = self.cell_types[membership[n_fixede:]]
+        # Convert the known cell types
+        lstring = len(max(self.cell_types, key=len))
+        self.membership = np.array(
+                [str(x) for x in membership[n_fixede:]],
+                dtype='U{:}'.format(lstring))
+        for i, ct in enumerate(self.cell_types):
+            self.membership[self.membership == str(i)] = ct
 
     def __call__(
             self,
@@ -387,7 +395,7 @@ class Averages(object):
         self._check_init_arguments()
 
         if np.isscalar(self.atlas):
-            self.atlas = AtlasFetcher.fetch_atlas(self.atlas)
+            self.atlas = AtlasFetcher().fetch_atlas(self.atlas)
 
         self.merge_atlas_newdata()
 

@@ -31,12 +31,15 @@ class Averages(object):
         '''Prepare the model for cell annotation
 
         Args:
-            atlas (int or dict): cell atlas to use. If an int, the
-            corresponding cell atlas from:
+            atlas (str, list of str, or dict): cell atlas to use. If an int,
+            the corresponding cell atlas from:
 
             https://github.com/iosonofabio/atlas_averages/blob/master/table.tsv
 
-            is fetched (0 is the first entry and so on). If a dict, it
+            is fetched (check the first column for atlas names). If a list of
+            str, multiple atlases will be fetched and combined. Only features
+            that are in all atlases will be kept. If you use this feature, be
+            careful to not mix atlases from different species. If a dict, it
             describes a custom cell atlas and must have two entries. 'counts'
             is a pandas DataFrame with features as rows and cell types as
             columns and gene expression counts as values. 'number_of_cells' is
@@ -123,6 +126,14 @@ class Averages(object):
             raise ValueError('n_features_overdispersed must be an int >= 0')
         if (nf1 < 1) and (nf2 < 1):
             raise ValueError('No features selected')
+
+    def fetch_atlas_if_needed(self):
+        '''Fetch atlas(es) if needed'''
+
+        if np.isscalar(self.atlas):
+            self.atlas = AtlasFetcher().fetch_atlas(self.atlas)
+        elif (isinstance(self.atlas, list) or (isinstance(self.atlas, tuple):
+            self.atlas = AtlasFetcher().fetch_multiple_atlases(self.atlas)
 
     def merge_atlas_newdata(self):
         '''Merge the averaged atlas data and the new data
@@ -405,8 +416,7 @@ class Averages(object):
         '''
         self._check_init_arguments()
 
-        if np.isscalar(self.atlas):
-            self.atlas = AtlasFetcher().fetch_atlas(self.atlas)
+        self.fetch_atlas_if_needed()
 
         self.merge_atlas_newdata()
 

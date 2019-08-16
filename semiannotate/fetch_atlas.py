@@ -31,7 +31,11 @@ class AtlasFetcher(object):
         return self.atlas_table.copy()
 
     def fetch_atlas(self, atlas_name):
-        '''Fetch an atlas from GitHub repo'''
+        '''Fetch an atlas from GitHub repo
+
+        Args:
+            atlas_name (str): the name of the atlas (see atlas table)
+        '''
         if self.atlas_table is None:
             self.fetch_atlas_table()
 
@@ -68,4 +72,68 @@ class AtlasFetcher(object):
         return {
             'counts': counts,
             'number_of_cells': number_of_cells,
+            }
+
+    def fetch_multiple_atlases(self, atlas_names):
+        '''Fetch and combine multiple atlases
+
+        Args:
+            atlas_names (list of str): the names of the atlases (see
+            atlas table)
+        '''
+        ds = {}
+        if len(atlas_names) == 0:
+            return ds
+
+        # Fetch data for all atlases
+        for atlas_name in atlas_names:
+            ds[atlas_name] = self.fetch_atlas(atlas_name)
+
+        # Get overlapping features, list of all cells, etc.
+        # Rename cells to ensure there are no duplicates
+        cell_names = []
+        cell_names_new = []
+        features = None
+        cell_dataset = []
+        for at, d in ds.items():
+            cell_names.extend(d['counts'].columns.tolist())
+            cell_names_new.extend(['{:}_{:}'.format(at, x) for x in d['counts'].columns])
+            cell_dataset.extend([at] * d['counts'].shape[1])
+            if features is None:
+                features = d['counts'].index.values
+            else:
+                features = np.intersect1d(
+                    features, d['counts'].index.values,
+                    )
+        cell_names = np.array(cell_names)
+        cell_names_new = np.array(cell_names_new)
+
+        # Fill the combined dataset
+        matrix = np.empty((len(features), len(cell_names)), np.float32)
+        n_cells_per_type = np.empty(len(cell_names), int)
+        i = 0
+        for at, d in ds.items():
+            n = d['counts'].shape[1]
+            matrix[:, i: i+n] = d['counts'].loc[features].values
+            n_cells_per_type[i: i+n] = d['number_of_cells'].values
+            i += n
+
+        counts = pd.DataFrame(
+            data=matrix,
+            index=features,
+            columns=cell_names_new,
+            )
+        number_of_cells = pd.Series(
+            data=n_cells_per_type,
+            index=cell_names_new,
+            )
+        cell_dataset = pd.Series(
+            data=cell_dataset,
+            index=cell_names_new,
+            )
+
+        return {
+            'counts': counts,
+            'number_of_cells': number_of_cells,
+            'atlas': cell_dataset,
             }

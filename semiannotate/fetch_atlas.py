@@ -21,7 +21,7 @@ class AtlasFetcher(object):
         '''Fetch atlas table from GitHub repo'''
         url = 'https://github.com/iosonofabio/atlas_averages/raw/master/table.tsv'
         r = requests.get(url)
-        table = pd.read_csv(io.BytesIO(r.content), sep='\t')
+        table = pd.read_csv(io.BytesIO(r.content), sep='\t', index_col=0)
         self.atlas_table = table
 
     def list_atlases(self):

@@ -397,6 +397,35 @@ class Averages(object):
         for i, ct in enumerate(self.cell_types):
             self.membership[self.membership == str(i)] = ct
 
+    def estimate_closest_atlas_cell_type(self):
+        '''Estimate atlas cell type closest to each new cluster'''
+        from scipy.spatial.distance import cdist
+
+        matrix = self.matrix
+        n_fixed = self.n_fixed
+        metric = self.distance_metric
+        cell_types = self.cell_types
+
+        # Calculate averages for the new clusters
+        ct_new = list(set(self.membership) - set(cell_types))
+        N = len(ct_new)
+        L = matrix.shape[0]
+        avg_new = np.empty((L, N), np.float32)
+        for i, ct in enumerate(ct_new):
+            avg_new[i] = self.matrix[:, self.membership == ct].mean(axis=1)
+
+        # Calculate distance matrix between new and old in the high-dimensional
+        # feature-selected space
+        dmat = cdist(avg_new, matrix[:n_fixed], metric=metric)
+
+        # Pick the closest
+        closest = np.argmin(dmat, axis=1)
+
+        # Give it actual names
+        closest = pd.Series(cell_types[closest], index=ct_new)
+
+        return closest
+
     def __call__(
             self,
             select_features=True,

@@ -414,11 +414,11 @@ class Averages(object):
         for i, ct in enumerate(ct_new):
             avg_new[i] = self.matrix[:, self.membership == ct].mean(axis=1)
 
-        avg_old = matrix[:, :n_fixed]
+        avg_atl = matrix[:, :n_fixed]
 
         # Calculate distance matrix between new and old in the high-dimensional
         # feature-selected space
-        dmat = cdist(avg_new, avg_old, metric=metric)
+        dmat = cdist(avg_new, avg_atl, metric=metric)
 
         # Pick the closest
         closest = np.argmin(dmat, axis=1)

@@ -6,6 +6,7 @@ __all__ = ['Subsample']
 
 
 import numpy as np
+import pandas as pd
 
 
 class Subsample(object):
@@ -68,7 +69,7 @@ class Subsample(object):
 
         self.matrix = matrix
         self.atlas_annotations = atlas_annotations
-        self.atlas_annotations_unique = np.unique(atlas_annotations)
+        self.cell_types = np.unique(atlas_annotations)
         self.n_fixed = n_fixed
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
@@ -92,7 +93,7 @@ class Subsample(object):
         # Shorten arg names
         matrix = self.matrix
         aa = self.atlas_annotations
-        aau = self.atlas_annotations_unique
+        aau = self.cell_types
         n_fixed = self.n_fixed
         nf1 = self.n_features_per_cell_type
         nf2 = self.n_features_overdispersed
@@ -220,7 +221,7 @@ class Subsample(object):
 
         matrix = self.matrix
         aa = self.atlas_annotations
-        aau = self.atlas_annotations_unique
+        aau = self.cell_types
         n_fixed = self.n_fixed
         clustering_metric = self.clustering_metric
         resolution_parameter = self.resolution_parameter
@@ -269,9 +270,48 @@ class Subsample(object):
 
         fixed_nodes = [int(i < n_fixed) for i in range(N)]
         opt.optimise_partition(partition, fixed_nodes=fixed_nodes)
-        membership = partition.membership
+        membership = partition.membership[n_fixed:]
 
-        self.membership = membership[n_fixed:]
+        # Convert the known cell types
+        lstring = len(max(self.cell_types, key=len))
+        self.membership = np.array(
+                [str(x) for x in membership],
+                dtype='U{:}'.format(lstring))
+        for i, ct in enumerate(self.cell_types):
+            self.membership[self.membership == str(i)] = ct
+
+    def estimate_closest_atlas_cell_type(self):
+        '''Estimate atlas cell type closest to each new cluster'''
+        from scipy.spatial.distance import cdist
+
+        matrix = self.matrix
+        n_fixed = self.n_fixed
+        metric = self.distance_metric
+        cell_types = self.cell_types
+
+        # Calculate averages for the new clusters
+        ct_new = list(set(self.membership) - set(cell_types))
+        N = len(ct_new)
+        L = matrix.shape[0]
+        avg_new = np.empty((L, N), np.float32)
+        for i, ct in enumerate(ct_new):
+            avg_new[i] = self.matrix[:, self.membership == ct].mean(axis=1)
+
+        avg_atl = np.empty((L, len(cell_types)), np.float32)
+        for i, ct in enumerate(cell_types):
+            avg_atl[i] = self.matrix[:, self.membership[:n_fixed] == ct].mean(axis=1)
+
+        # Calculate distance matrix between new and old in the high-dimensional
+        # feature-selected space
+        dmat = cdist(avg_new, avg_atl, metric=metric)
+
+        # Pick the closest
+        closest = np.argmin(dmat, axis=1)
+
+        # Give it actual names
+        closest = pd.Series(cell_types[closest], index=ct_new)
+
+        return closest
 
     def __call__(
             self,
@@ -292,10 +332,8 @@ class Subsample(object):
         '''
         self._check_init_arguments()
 
-        # STEP 1
         if select_features:
             self.select_features()
         self.compute_neighbors()
 
-        # STEP 2
         self.compute_communities()

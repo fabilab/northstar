@@ -387,12 +387,12 @@ class Averages(object):
 
         fixed_nodes = [int(i < n_fixede) for i in range(Ne)]
         opt.optimise_partition(partition, fixed_nodes=fixed_nodes)
-        membership = partition.membership
+        membership = partition.membership[n_fixede:]
 
         # Convert the known cell types
         lstring = len(max(self.cell_types, key=len))
         self.membership = np.array(
-                [str(x) for x in membership[n_fixede:]],
+                [str(x) for x in membership],
                 dtype='U{:}'.format(lstring))
         for i, ct in enumerate(self.cell_types):
             self.membership[self.membership == str(i)] = ct
@@ -414,9 +414,11 @@ class Averages(object):
         for i, ct in enumerate(ct_new):
             avg_new[i] = self.matrix[:, self.membership == ct].mean(axis=1)
 
+        avg_old = matrix[:, :n_fixed]
+
         # Calculate distance matrix between new and old in the high-dimensional
         # feature-selected space
-        dmat = cdist(avg_new, matrix[:n_fixed], metric=metric)
+        dmat = cdist(avg_new, avg_old, metric=metric)
 
         # Pick the closest
         closest = np.argmin(dmat, axis=1)

@@ -9,6 +9,11 @@ import numpy as np
 import pandas as pd
 from .fetch_atlas import AtlasFetcher
 
+try:
+    from anndata import AnnData
+except ImportError:
+    AnnData = None
+
 
 class Averages(object):
     '''Annotate new cell types using averages of an atlas'''
@@ -46,8 +51,11 @@ class Averages(object):
             a pandas Series with the same cell types as index and the number of
             cells to use for each cell type as values.
 
-            new_data (pandas DataFrame): the new data to be clustered. The
-            data frame must have features as rows and cellnames as columns.
+            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
+            clustered. If a dataframe, t must have features as rows and
+            cell names as columns (as in loom files). anndata uses the opposite
+            convention, so it must have cell names as rows (obs_names) and
+            features as columns (var_names) and this class will transpose it.
 
             n_cells_per_type (None or int): if None, use the number of cells
             per type from the atlas. Else, fix it to this number for all types.
@@ -102,21 +110,34 @@ class Averages(object):
             raise ValueError('new_data should be a pandas DataFrame with features as rows')
 
         # Custom atlas
-        if not np.isscalar(self.atlas):
+        at = self.atlas
+        if not np.isscalar(at):
             if not isinstance(self.atlas, dict):
                 raise ValueError('atlas must be a dict')
-            if 'counts' not in self.atlas:
+            if 'counts' not in at:
                 raise ValueError('atlas must have a "counts" key')
-            if 'number_of_cells' not in self.atlas:
+            if 'number_of_cells' not in at:
                 raise ValueError('atlas must have a "number_of_cells" key')
-            if not isinstance(self.atlas['counts'], pd.DataFrame):
-                raise ValueError('atlas["counts"] must be a dataframe')
-            if not isinstance(self.atlas['number_of_cells'], pd.DataFrame):
+
+            # The counts can be pandas.DataFrame or anndata.AnnData
+            if not isinstance(at['counts'], pd.DataFrame):
+                if ((AnnData is None) or
+                    (not isinstance(at['counts'], AnnData)):
+                    raise ValueError('atlas["counts"] must be a dataframe')
+
+                # AnnData uses features as columns, to transpose and convert
+                if isinstance(at['counts'], AnnData):
+                    at['counts'] = at['counts'].T.to_df()
+
+            # even within AnnData, metadata colunms are pandas.DataFrame
+            if not isinstance(at['number_of_cells'], pd.DataFrame):
                 raise ValueError('atlas["number_of_cells"] must be a dataframe')
-            if self.atlas['counts'].shape[1] != self.atlas['number_of_cells'].shape[0]:
-                raise ValueError('atlas counts and number_of_cells must have the same cells')
-            if (self.atlas['counts'].columns != self.atlas['number_of_cells'].index).any():
-                raise ValueError('atlas counts and number_of_cells must have the same cells')
+            if at['counts'].shape[1] != at['number_of_cells'].shape[0]:
+                raise ValueError(
+                    'atlas counts and number_of_cells must have the same cells')
+            if (at['counts'].columns != at['number_of_cells'].index).any():
+                raise ValueError(
+                    'atlas counts and number_of_cells must have the same cells')
 
         nf1 = self.n_features_per_cell_type
         if not isinstance(nf1, int):

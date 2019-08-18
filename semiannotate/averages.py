@@ -45,11 +45,15 @@ class Averages(object):
             str, multiple atlases will be fetched and combined. Only features
             that are in all atlases will be kept. If you use this feature, be
             careful to not mix atlases from different species. If a dict, it
-            describes a custom cell atlas and must have two entries. 'counts'
-            is a pandas DataFrame with features as rows and cell types as
-            columns and gene expression counts as values. 'number_of_cells' is
-            a pandas Series with the same cell types as index and the number of
-            cells to use for each cell type as values.
+            describes a custom cell atlas and must have two entries.
+            'number_of_cells' is a pandas Series with the same cell types as
+            index and the number of cells to use for each cell type as values.
+            'counts' is a pandas.DataFrame or an anndata.AnnData structure.
+            If a DataFrame, it must have features as rows and cell types as
+            columns; if an AnnData, it is reversed (AnnData uses a
+            different convention) and it must have the cell types as rows
+            (obs_names) and the features as columns (var_names). If an AnnData,
+            it will be converted into a DataFrame.
 
             new_data (pandas.DataFrame or anndata.AnnData): the new data to be
             clustered. If a dataframe, t must have features as rows and
@@ -121,13 +125,14 @@ class Averages(object):
 
             # The counts can be pandas.DataFrame or anndata.AnnData
             if not isinstance(at['counts'], pd.DataFrame):
-                if ((AnnData is None) or
-                    (not isinstance(at['counts'], AnnData)):
-                    raise ValueError('atlas["counts"] must be a dataframe')
+                if AnnData is None:
+                    raise ValueError('atlas["counts"] must be a DataFrame')
+                elif not isinstance(at['counts'], AnnData):
+                    raise ValueError('atlas["counts"] must be a DataFrame'
+                                     ' or AnnData object')
 
                 # AnnData uses features as columns, to transpose and convert
-                if isinstance(at['counts'], AnnData):
-                    at['counts'] = at['counts'].T.to_df()
+                at['counts'] = at['counts'].T.to_df()
 
             # even within AnnData, metadata colunms are pandas.DataFrame
             if not isinstance(at['number_of_cells'], pd.DataFrame):
@@ -138,6 +143,18 @@ class Averages(object):
             if (at['counts'].columns != at['number_of_cells'].index).any():
                 raise ValueError(
                     'atlas counts and number_of_cells must have the same cells')
+
+        # Make sure new data is a dataframe
+        nd = self.new_data
+        if not isinstance(nd, pd.DataFrame):
+            if AnnData is None:
+                raise ValueError('new data must be a DataFrame')
+            elif not isinstance(nd, AnnData):
+                raise ValueError('new_data must be a DataFrame'
+                                 ' or AnnData object')
+
+            # AnnData uses features as columns, to transpose and convert
+            self.new_data = nd = nd.T.to_df()
 
         nf1 = self.n_features_per_cell_type
         if not isinstance(nf1, int):

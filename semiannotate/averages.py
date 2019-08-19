@@ -176,7 +176,7 @@ class Averages(object):
 
         if np.isscalar(self.atlas):
             self.atlas = AtlasFetcher().fetch_atlas(self.atlas)
-        elif (isinstance(self.atlas, list) or (isinstance(self.atlas, tuple):
+        elif isinstance(self.atlas, list) or isinstance(self.atlas, tuple):
             self.atlas = AtlasFetcher().fetch_multiple_atlases(self.atlas)
 
     def merge_atlas_newdata(self):

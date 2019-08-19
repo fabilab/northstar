@@ -27,6 +27,7 @@ class Averages(object):
             n_features_overdispersed=500,
             n_pcs=20,
             n_neighbors=10,
+            n_neighbors_out_of_atlas=5,
             distance_metric='correlation',
             threshold_neighborhood=0.8,
             clustering_metric='cpm',
@@ -64,15 +65,19 @@ class Averages(object):
             n_cells_per_type (None or int): if None, use the number of cells
             per type from the atlas. Else, fix it to this number for all types.
 
-            n_features_per_cell_type (int): number of features marking each fixed
-            column (atlas cell type).
+            n_features_per_cell_type (int): number of features marking each
+            fixed column (atlas cell type).
 
             n_features_overdispersed (int): number of unbiased, overdispersed
             features to be picked from the new dataset.
 
-            n_pcs (int): number of principal components to keep in the weighted PCA
+            n_pcs (int): number of principal components to keep in the weighted
+            PCA.
 
-            n_neighbors (int): number of neighbors in the similarity graph
+            n_neighbors (int): number of neighbors in the similarity graph.
+
+            n_neighbors_out_of_atlas (int): number of neighbors coming out of
+            the atlas nodes into the new dataset.
 
             distance_metric (str or function): metric to use as distance. If a
             string, it should be a metric accepted by scipy.spatial.distance.cdist.
@@ -103,6 +108,7 @@ class Averages(object):
         self.n_features_overdispersed = n_features_overdispersed
         self.n_pcs = n_pcs
         self.n_neighbors = n_neighbors
+        self.n_neighbors_out_of_atlas = n_neighbors_out_of_atlas
         self.distance_metric = distance_metric
         self.threshold_neighborhood = threshold_neighborhood
         self.clustering_metric = clustering_metric
@@ -273,6 +279,7 @@ class Averages(object):
         sizes = self.sizes
         n_fixed = self.n_fixed
         k = self.n_neighbors
+        kout = self.n_neighbors_out_of_atlas
         n_pcs = self.n_pcs
         metric = self.distance_metric
         threshold = self.threshold_neighborhood
@@ -334,6 +341,7 @@ class Averages(object):
         # we do it row by row, it costs a bit in terms of runtime but
         # has huge savings in terms of memory since we don't need the square
         # distance matrix
+        n_fixede = int(np.sum(sizes[:n_fixed]))
         neighbors = []
         for i in range(Ne):
             drow = cdist(rvectse[[i]], rvectse, metric=metric)[0]
@@ -342,7 +350,11 @@ class Averages(object):
             drow[i] = drow.max() + 1
 
             # Find largest k negative distances (k neighbors)
-            ind = np.argpartition(-drow, -k)[-k:]
+            if i < n_fixede:
+                ki = (sizes[i] - 1) + kout
+            else:
+                ki = k
+            ind = np.argpartition(-drow, -ki)[-ki:]
 
             # Discard the ones beyond threshold
             ind = ind[drow[ind] <= threshold]

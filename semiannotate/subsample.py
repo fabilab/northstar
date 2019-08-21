@@ -246,7 +246,7 @@ class Subsample(object):
             if j < self.n_fixed:
                 mb = aau.index(aa[j])
             else:
-                mb = j - len(n_fixed) + aaun
+                mb = aaun + (j - n_fixed)
             initial_membership.append(mb)
 
         # Compute communities with semi-supervised Leiden

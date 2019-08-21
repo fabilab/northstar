@@ -16,7 +16,6 @@ class Subsample(object):
         self,
         matrix,
         atlas_annotations,
-        n_fixed,
         n_features_per_cell_type=30,
         n_features_overdispersed=500,
         n_pcs=20,
@@ -32,15 +31,11 @@ class Subsample(object):
             matrix (L x N float ndarray): matrix of data. Rows are variables
             (features/genes) and columns are observations (samples/cells).
 
-            atlas_annotations (n_fixed array of ints): annotations of the first
-            n_fixed columns of the matrix, corresponding to a subsample of
-            the cell atlas.
+            atlas_annotations (n_fixed array of str): annotations of the atlas
+            columns of the matrix.
 
-            n_fixed (int): number of columns that are fixed. These are the first
-            columns of the matrix. No knn for those columns is calculated.
-
-            n_features_per_cell_type (int): number of features marking each fixed
-            column (atlas cell type).
+            n_features_per_cell_type (int): number of features marking each
+            fixed column (atlas cell type).
 
             n_features_overdispersed (int): number of unbiased, overdispersed
             features from the last N - n_fixed columns.
@@ -69,8 +64,8 @@ class Subsample(object):
 
         self.matrix = matrix
         self.atlas_annotations = atlas_annotations
-        self.cell_types = np.unique(atlas_annotations)
-        self.n_fixed = n_fixed
+        self.cell_types = list(np.unique(atlas_annotations))
+        self.n_fixed = len(atlas_annotations)
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
         self.n_pcs = n_pcs
@@ -83,6 +78,11 @@ class Subsample(object):
     def _check_init_arguments(self):
         if self.n_neighbors >= self.matrix.shape[1] - 1:
             raise ValueError('n_neighbors is too high so the similarity graph is fully connected')
+
+        aa = np.empty(len(self.atlas_annotations), 'U200')
+        for i, a in enumerate(self.atlas_annotations):
+            aa[i] = str(a)
+        self.atlas_annotations = aa
 
     def select_features(self):
         '''Select features that define heterogeneity of the atlas and new data
@@ -240,16 +240,14 @@ class Subsample(object):
 
         # NOTE: initial membership is singletons except for atlas nodes, which
         # get the membership they have.
-        tmp = set(aau)
-        initial_membership = list(aa)
-        i = 0
-        for j in range(N - n_fixed):
-            while i in tmp:
-                i += 1
-            initial_membership.append(i)
-            tmp.add(i)
-            i += 1
-        del tmp
+        aaun = len(aau)
+        initial_membership = []
+        for j in range(N):
+            if j < self.n_fixed:
+                mb = aau.index(aa[j])
+            else:
+                mb = j - len(n_fixed) + aaun
+            initial_membership.append(mb)
 
         # Compute communities with semi-supervised Leiden
         if clustering_metric == 'cpm':

@@ -7,32 +7,58 @@ __all__ = ['Subsample']
 
 import numpy as np
 import pandas as pd
+from .fetch_atlas import AtlasFetcher
+
+try:
+    from anndata import AnnData
+except ImportError:
+    AnnData = None
 
 
 class Subsample(object):
     '''Annotate new cell types using an even subsample of an atlas'''
 
     def __init__(
-        self,
-        matrix,
-        atlas_annotations,
-        n_features_per_cell_type=30,
-        n_features_overdispersed=500,
-        n_pcs=20,
-        n_neighbors=10,
-        distance_metric='correlation',
-        threshold_neighborhood=0.8,
-        clustering_metric='cpm',
-        resolution_parameter=0.001
-        ):
+            self,
+            atlas,
+            new_data,
+            n_features_per_cell_type=30,
+            n_features_overdispersed=500,
+            n_pcs=20,
+            n_neighbors=10,
+            distance_metric='correlation',
+            threshold_neighborhood=0.8,
+            clustering_metric='cpm',
+            resolution_parameter=0.001,
+            normalize_counts=True,
+            ):
         '''Prepare the model for cell annotation
 
         Args:
-            matrix (L x N float ndarray): matrix of data. Rows are variables
-            (features/genes) and columns are observations (samples/cells).
+            atlas (str, list of str, or dict): cell atlas to use. If a str,
+            the corresponding cell atlas from:
 
-            atlas_annotations (n_fixed array of str): annotations of the atlas
-            columns of the matrix.
+            https://github.com/iosonofabio/atlas_averages/blob/master/table.tsv
+
+            is fetched (check the first column for atlas names). If a list of
+            str, multiple atlases will be fetched and combined. Only features
+            that are in all atlases will be kept. If you use this feature, be
+            careful to not mix atlases from different species. If a dict, it
+            describes a custom cell atlas and must have two entries.
+            'cell_types' is a pandas Series with the cell names as
+            index and the cell types to use for each cell as values.
+            'counts' is a pandas.DataFrame or an anndata.AnnData structure.
+            If a DataFrame, it must have features as rows and cell names as
+            columns; if an AnnData, it is reversed (AnnData uses a
+            different convention) and it must have the cell types as rows
+            (obs_names) and the features as columns (var_names). If an AnnData,
+            it will be converted into a DataFrame.
+
+            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
+            clustered. If a dataframe, t must have features as rows and
+            cell names as columns (as in loom files). anndata uses the opposite
+            convention, so it must have cell names as rows (obs_names) and
+            features as columns (var_names) and this class will transpose it.
 
             n_features_per_cell_type (int): number of features marking each
             fixed column (atlas cell type).
@@ -60,12 +86,14 @@ class Subsample(object):
 
             resolution_parameter (float): number between 0 and 1 that sets
             how easy it is for the clustering algorithm to make new clusters
+
+            normalize_counts (bool): whether to renormalize the counts at the
+            merging stage to make sure atlas and new data follow the same
+            normalization. Be careful if you turn this off.
         '''
 
-        self.matrix = matrix
-        self.atlas_annotations = atlas_annotations
-        self.cell_types = list(np.unique(atlas_annotations))
-        self.n_fixed = len(atlas_annotations)
+        self.atlas = atlas
+        self.new_data = new_data
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
         self.n_pcs = n_pcs
@@ -74,15 +102,104 @@ class Subsample(object):
         self.threshold_neighborhood = threshold_neighborhood
         self.clustering_metric = clustering_metric
         self.resolution_parameter = resolution_parameter
+        self.normalize_counts = normalize_counts
 
     def _check_init_arguments(self):
-        if self.n_neighbors >= self.matrix.shape[1] - 1:
-            raise ValueError('n_neighbors is too high so the similarity graph is fully connected')
+        # Custom atlas
+        at = self.atlas
+        if not np.isscalar(at):
+            if not isinstance(self.atlas, dict):
+                raise ValueError('atlas must be a dict')
+            if 'counts' not in at:
+                raise ValueError('atlas must have a "counts" key')
+            if 'cell_types' not in at:
+                raise ValueError('atlas must have a "cell_types" key')
 
-        aa = np.empty(len(self.atlas_annotations), 'U200')
-        for i, a in enumerate(self.atlas_annotations):
-            aa[i] = str(a)
-        self.atlas_annotations = aa
+            # The counts can be pandas.DataFrame or anndata.AnnData
+            if not isinstance(at['counts'], pd.DataFrame):
+                if AnnData is None:
+                    raise ValueError('atlas["counts"] must be a DataFrame')
+                elif not isinstance(at['counts'], AnnData):
+                    raise ValueError('atlas["counts"] must be a DataFrame'
+                                     ' or AnnData object')
+
+                # AnnData uses features as columns, to transpose and convert
+                at['counts'] = at['counts'].T.to_df()
+
+            # even within AnnData, metadata colunms are pandas.DataFrame
+            if not isinstance(at['cell_types'], pd.DataFrame):
+                raise ValueError('atlas["cell_types"] must be a dataframe')
+            if at['counts'].shape[1] != at['cell_types'].shape[0]:
+                raise ValueError(
+                    'atlas counts and cell_types must have the same cells')
+            if (at['counts'].columns != at['cell_types'].index).any():
+                raise ValueError(
+                    'atlas counts and cell_types must have the same cells')
+
+        # Make sure new data is a dataframe
+        nd = self.new_data
+        if not isinstance(nd, pd.DataFrame):
+            if AnnData is None:
+                raise ValueError('new data must be a DataFrame')
+            elif not isinstance(nd, AnnData):
+                raise ValueError('new_data must be a DataFrame'
+                                 ' or AnnData object')
+
+            # AnnData uses features as columns, to transpose and convert
+            self.new_data = nd = nd.T.to_df()
+
+        nf1 = self.n_features_per_cell_type
+        if not isinstance(nf1, int):
+            raise ValueError('n_features_per_cell_type must be an int >= 0')
+        nf2 = self.n_features_overdispersed
+        if not isinstance(nf1, int):
+            raise ValueError('n_features_overdispersed must be an int >= 0')
+        if (nf1 < 1) and (nf2 < 1):
+            raise ValueError('No features selected')
+
+    def fetch_atlas_if_needed(self):
+        '''Fetch atlas(es) if needed'''
+
+        if np.isscalar(self.atlas):
+            self.atlas = AtlasFetcher().fetch_atlas(self.atlas)
+        elif isinstance(self.atlas, list) or isinstance(self.atlas, tuple):
+            self.atlas = AtlasFetcher().fetch_multiple_atlases(self.atlas)
+
+    def merge_atlas_newdata(self):
+        '''Merge the averaged atlas data and the new data
+
+        This function sets the properties:
+            - n_fixed: the number of cell types in the atlas
+            - n_free: the number of cell types in the new data
+            - cell_types: a 1D array with the cell types of the atlas
+            - features_all: a 1D array with the features that were found in
+            - matrix: a 2D array with the merged counts
+
+        NOTE: is self.normalize is True, the merged count matrix is normalized
+        by 1 million total counts.
+        '''
+
+        # Intersect features
+        atlas_features = self.atlas['counts'].index.values
+        new_data_features = self.new_data.index.values
+        features = np.intersect1d(atlas_features, new_data_features)
+        self.features_all = features
+
+        # Cells, cell types, and cell numbers
+        self.cell_names = self.atlas['counts'].columns.values
+        self.cell_types = self.atlas['cell_types'].values
+        self.n_fixed = n_fixed = self.atlas['counts'].shape[1]
+        self.n_free = n_free = self.new_data.shape[1]
+
+        # Count matrix
+        L = len(features)
+        N = n_fixed + n_free
+        matrix = np.empty((L, N), dtype=np.float32)
+        matrix[:, :n_fixed] = self.atlas['counts'].loc[features].values
+        matrix[:, n_fixed:] = self.new_data.loc[features].values
+        if self.normalize_counts:
+            matrix *= 1e6 / matrix.sum(axis=0)
+        self.matrix = matrix
 
     def select_features(self):
         '''Select features that define heterogeneity of the atlas and new data
@@ -220,8 +337,8 @@ class Subsample(object):
             raise ImportError('This version of the leidenalg module does not support fixed nodes. Please update to a later (development) version')
 
         matrix = self.matrix
-        aa = self.atlas_annotations
-        aau = self.cell_types
+        aa = self.cell_types
+        aau = np.unique(aa)
         n_fixed = self.n_fixed
         clustering_metric = self.clustering_metric
         resolution_parameter = self.resolution_parameter
@@ -329,6 +446,10 @@ class Subsample(object):
             assumes to have distinct memberships in the range [0, n_fixed - 1].
         '''
         self._check_init_arguments()
+
+        self.fetch_atlas_if_needed()
+
+        self.merge_atlas_newdata()
 
         if select_features:
             self.select_features()

@@ -37,7 +37,7 @@ class Averages(object):
         '''Prepare the model for cell annotation
 
         Args:
-            atlas (str, list of str, or dict): cell atlas to use. If an int,
+            atlas (str, list of str, or dict): cell atlas to use. If a str,
             the corresponding cell atlas from:
 
             https://github.com/iosonofabio/atlas_averages/blob/master/table.tsv
@@ -47,7 +47,7 @@ class Averages(object):
             that are in all atlases will be kept. If you use this feature, be
             careful to not mix atlases from different species. If a dict, it
             describes a custom cell atlas and must have two entries.
-            'number_of_cells' is a pandas Series with the same cell types as
+            'number_of_cells' is a pandas Series with the cell types as
             index and the number of cells to use for each cell type as values.
             'counts' is a pandas.DataFrame or an anndata.AnnData structure.
             If a DataFrame, it must have features as rows and cell types as
@@ -116,9 +116,6 @@ class Averages(object):
         self.normalize_counts = normalize_counts
 
     def _check_init_arguments(self):
-        if not isinstance(self.new_data, pd.DataFrame):
-            raise ValueError('new_data should be a pandas DataFrame with features as rows')
-
         # Custom atlas
         at = self.atlas
         if not np.isscalar(at):
@@ -184,6 +181,7 @@ class Averages(object):
 
         This function sets the properties:
             - n_fixed: the number of cell types in the atlas
+            - n_free: the number of cell types in the new data
             - cell_types: a 1D array with the cell types of the atlas
             - features_all: a 1D array with the features that were found in
             - matrix: a 2D array with the merged counts
@@ -194,16 +192,20 @@ class Averages(object):
         by 1 million total counts.
         '''
 
+        # Intersect features
         atlas_features = self.atlas['counts'].index.values
         new_data_features = self.new_data.index.values
         features = np.intersect1d(atlas_features, new_data_features)
-
         self.features_all = features
+
+        # Cells types
         self.n_fixed = n_fixed = self.atlas['counts'].shape[1]
+        self.n_free = n_free = self.new_data.shape[1]
         self.cell_types = self.atlas['counts'].columns.values
 
+        # Count matrix
         L = len(features)
-        N = n_fixed + self.new_data.shape[1]
+        N = n_fixed + n_free
         matrix = np.empty((L, N), dtype=np.float32)
         matrix[:, :n_fixed] = self.atlas['counts'].loc[features].values
         matrix[:, n_fixed:] = self.new_data.loc[features].values
@@ -211,6 +213,7 @@ class Averages(object):
             matrix *= 1e6 / matrix.sum(axis=0)
         self.matrix = matrix
 
+        # Cell numbers
         self.sizes = np.ones(N, np.float32)
         if self.n_cells_per_type is not None:
             self.sizes[:self.n_fixed] *= self.n_cells_per_type

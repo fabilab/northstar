@@ -72,7 +72,7 @@ class AtlasFetcher(object):
                 if kind == 'average':
                     n_of_cells = dsl.ca['NumberOfCells']
                 else:
-                    cell_names = dsl.ca['CellID']
+                    cell_names = dsl.ca['CellName']
 
         finally:
             os.remove(path)

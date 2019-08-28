@@ -22,6 +22,7 @@ class AtlasFetcher(object):
         url = 'https://github.com/iosonofabio/atlas_averages/raw/master/table.tsv'
         r = requests.get(url)
         table = pd.read_csv(io.BytesIO(r.content), sep='\t', index_col=0)
+        
         self.atlas_table = table
 
     def list_atlases(self):
@@ -30,16 +31,31 @@ class AtlasFetcher(object):
             self.fetch_atlas_table()
         return self.atlas_table.copy()
 
-    def fetch_atlas(self, atlas_name):
+    def fetch_atlas(self, atlas_name, kind='average'):
         '''Fetch an atlas from GitHub repo
 
         Args:
             atlas_name (str): the name of the atlas (see atlas table)
+            kind (str): must be 'average' for the average expression of each
+            cell type, or 'subsample' for a subsample of the atlas.
+
+        Returns:
+            a dictionary with two keys. 'counts' contains the gene expression
+            count table. For kind == 'average', 'number_of_cells' include the
+            number of cells within each cell type. For kind == 'subsample',
+            'metadata' includes the cell types of the subsample.
         '''
+        if kind not in ('average', 'subsample'):
+            raise ValueError('kind must be one of "average" and "subsample"')
+
         if self.atlas_table is None:
             self.fetch_atlas_table()
 
-        url = self.atlas_table.at[atlas_name, 'URL']
+        if kind == 'subsample':
+            url = self.atlas_table.at[atlas_name, 'URL_subsample']
+        else:
+            url = self.atlas_table.at[atlas_name, 'URL_average']
+
         r = requests.get(url)
 
         # Use a temp file, loompy has its own quirks
@@ -51,28 +67,47 @@ class AtlasFetcher(object):
 
             with loompy.connect(path) as dsl:
                 matrix = dsl.layers[''][:, :]
-                cell_types = dsl.ca['CellType']
-                n_of_cells = dsl.ca['NumberOfCells']
                 features = dsl.ra['GeneName']
+                cell_types = dsl.ca['CellType']
+                if kind == 'average':
+                    n_of_cells = dsl.ca['NumberOfCells']
+                else:
+                    cell_names = dsl.ca['CellID']
 
         finally:
             os.remove(path)
 
         # Package into dataframes
-        counts = pd.DataFrame(
-            data=matrix,
-            index=features,
-            columns=cell_types,
-            )
-        number_of_cells = pd.Series(
-            data=n_of_cells,
-            index=cell_types,
-            )
-
-        return {
-            'counts': counts,
-            'number_of_cells': number_of_cells,
+        if kind == 'average':
+            counts = pd.DataFrame(
+                data=matrix,
+                index=features,
+                columns=cell_types,
+                )
+            number_of_cells = pd.Series(
+                data=n_of_cells,
+                index=cell_types,
+                )
+            res = {
+                'counts': counts,
+                'number_of_cells': number_of_cells,
             }
+        else:
+            counts = pd.DataFrame(
+                data=matrix,
+                index=features,
+                columns=cell_names,
+                )
+            meta = pd.Series(
+                data=cell_types,
+                index=cell_names,
+                )
+            res = {
+                'counts': counts,
+                'metadata': meta,
+            }
+
+        return res
 
     def fetch_multiple_atlases(self, atlas_names):
         '''Fetch and combine multiple atlases

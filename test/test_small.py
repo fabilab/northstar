@@ -16,7 +16,7 @@ def test_neighbors_random():
     threshold = 0.8
 
     sa = Averages(
-            'Darmanis_2015', matrix
+            'Darmanis_2015', matrix,
             n_neighbors=k, threshold_neighborhood=threshold, n_pcs=n_pcs,
             distance_metric='correlation',
             )

@@ -10,14 +10,17 @@ from semiannotate import Averages
 def test_neighbors_random():
     N = 200
     L = 50
-    matrix = pd.DataFrame(index=['INS','GCG','PPY'],columns=['cell1','cell2','cell3'],data=[[2302,123,0],[0,5034,6453],[0,0,1]])
+    matrix = pd.DataFrame(
+        index=['INS','GCG','PPY'],
+        columns=['cell1','cell2','cell3'],
+        data=[[2302,123,0],[0,5034,6453],[0,0,1]])
     n_pcs = 2
     k = 1
     threshold = 0.8
 
     sa = Averages(
             'Enge_2017', matrix,
-            n_neighbors=k, threshold_neighborhood=threshold, n_pcs=n_pcs,
+            n_neighbors=2, threshold_neighborhood=threshold, n_pcs=n_pcs,
             distance_metric='correlation',
             n_neighbors_out_of_atlas=1
             )

@@ -334,10 +334,12 @@ class Averages(object):
         # principal components are used
         Ne = int(np.sum(sizes))
         rvectse = np.empty((Ne, n_pcs), np.float32)
+        sizese = np.empty(Ne, int)
         i = 0
         for isi, size in enumerate(sizes):
             for j in range(int(size)):
                 rvectse[i] = rvects[isi]
+                sizese[i] = size
                 i += 1
 
         # 5. calculate distance matrix and neighbors
@@ -354,9 +356,10 @@ class Averages(object):
 
             # Find largest k negative distances (k neighbors)
             if i < n_fixede:
-                ki = (sizes[i] - 1) + kout
+                ki = int(sizese[i] - 1) + kout
             else:
                 ki = k
+
             ind = np.argpartition(-drow, -ki)[-ki:]
 
             # Discard the ones beyond threshold

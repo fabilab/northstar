@@ -15,7 +15,7 @@ if [ $TAG1 != 'release' ] || [ "version = $TAG2" != $(cat semiannotate/version.p
   echo 'No release tag or wrong version, exit'
   exit 0;
 fi
-SINGLET_VERSION=$TAG2
+VERSION=$TAG2
 
 # For now deploy only Linux Python 3.7 (it's pure Python)
 if [ $TRAVIS_OS_NAME != 'linux' ]; then
@@ -52,5 +52,5 @@ pip install twine
 python setup.py sdist --dist-dir dist/
 
 # Upload source
-twine upload --repository-url "${TWINE_REPOSITORY}" -u "${TWINE_USERNAME}" -p "${TWINE_PASSWORD}" dist/singlet-${SINGLET_VERSION}.tar.gz
+twine upload --repository-url "${TWINE_REPOSITORY}" -u "${TWINE_USERNAME}" -p "${TWINE_PASSWORD}" dist/semiannotate-${VERSION}.tar.gz
 

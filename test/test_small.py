@@ -20,7 +20,7 @@ def test_neighbors_random():
 
     sa = Averages(
             'Enge_2017', matrix,
-            n_neighbors=2, threshold_neighborhood=threshold, n_pcs=n_pcs,
+            n_neighbors=k, threshold_neighborhood=threshold, n_pcs=n_pcs,
             distance_metric='correlation',
             n_neighbors_out_of_atlas=1
             )
@@ -31,10 +31,9 @@ def test_neighbors_random():
     neis = sa.neighbors
 
     assert(isinstance(neis, list))
-    assert(len(neis) == (N - n_fixed))
+    assert(len(neis) == int(np.sum(sa.sizes)))
     for nei in neis:
         assert(isinstance(nei, list))
-        assert(len(nei) <= k)
 
 """
 def test_neighbors_adhoc():

@@ -23,6 +23,7 @@ class Averages(object):
             atlas,
             new_data,
             n_cells_per_type=None,
+            features=None,
             n_features_per_cell_type=30,
             n_features_overdispersed=500,
             n_pcs=20,
@@ -65,6 +66,11 @@ class Averages(object):
             n_cells_per_type (None or int): if None, use the number of cells
             per type from the atlas. Else, fix it to this number for all types.
 
+            features (list of str or None): list of features to select after
+            normalization. If None, features will be selected automatically
+            based on the two next arguments, 'n_features_per_cell_type' and
+            'n_features_overdispersed'.
+
             n_features_per_cell_type (int): number of features marking each
             fixed column (atlas cell type).
 
@@ -104,6 +110,7 @@ class Averages(object):
         self.atlas = atlas
         self.new_data = new_data
         self.n_cells_per_type = n_cells_per_type
+        self.features = features
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
         self.n_pcs = n_pcs
@@ -228,11 +235,22 @@ class Averages(object):
         '''
         # Shorten arg names
         matrix = self.matrix
+        features = self.features
+        features_all = list(self.features_all)
+
+        if features is not None:
+            ind_features = []
+            for fea in features:
+                ind_features.append(features_all.index(fea))
+            self.features_selected = features
+            self.matrix = self.matrix[ind_features]
+            return
+
         n_fixed = self.n_fixed
         nf1 = self.n_features_per_cell_type
         nf2 = self.n_features_overdispersed
 
-        features = set()
+        ind_features = set()
 
         # Atlas markers
         if (nf1 > 0) and (n_fixed > 1):
@@ -241,7 +259,7 @@ class Averages(object):
                 ge2 = (matrix[:, :n_fixed].sum(axis=1) - ge1) / (n_fixed - 1)
                 fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
                 markers = np.argpartition(fold_change, -nf1)[-nf1:]
-                features |= set(markers)
+                ind_features |= set(markers)
 
         # Unbiased on new data
         if nf2 > 0:
@@ -249,12 +267,12 @@ class Averages(object):
             nd_var = matrix[:, n_fixed:].var(axis=1)
             fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
             overdispersed = np.argpartition(fano, -nf2)[-nf2:]
-            features |= set(overdispersed)
+            ind_features |= set(overdispersed)
 
-        features = list(features)
+        ind_features = list(ind_features)
 
-        self.features_selected = features
-        self.matrix = self.matrix[features]
+        self.features_selected = self.features_all[ind_features]
+        self.matrix = self.matrix[ind_features]
 
     def compute_neighbors(self):
         '''Compute k nearest neighbors from a matrix with fixed nodes
@@ -320,7 +338,7 @@ class Averages(object):
         # sort by decreasing eigenvalue (explained variance) and truncate
         ind = evals.argsort()[::-1][:n_pcs]
         # NOTE: we do not actually need the eigenvalues anymore
-        lvects = evects.T[ind]
+        lvects = np.real(evects.T[ind])
 
         # calculate right singular vectors given the left singular vectors
         # NOTE: this is true even if we truncated the PCA via n_pcs << L
@@ -334,12 +352,12 @@ class Averages(object):
         # principal components are used
         Ne = int(np.sum(sizes))
         rvectse = np.empty((Ne, n_pcs), np.float32)
-        sizese = np.empty(Ne, int)
+        cell_typen = []
         i = 0
         for isi, size in enumerate(sizes):
+            cell_typen.append((i, i+size))
             for j in range(int(size)):
                 rvectse[i] = rvects[isi]
-                sizese[i] = size
                 i += 1
 
         # 5. calculate distance matrix and neighbors
@@ -348,19 +366,40 @@ class Averages(object):
         # distance matrix
         n_fixede = int(np.sum(sizes[:n_fixed]))
         neighbors = []
-        for i in range(Ne):
+        i = 0
+        # Treat things within and outside of the atlas differently
+        # Atlas neighbors
+        for isi in range(n_fixed):
+            # Find the nearest neighbors in the new data
+            drow = cdist(rvects[[isi]], rvects[n_fixed:], metric=metric)[0]
+            ind = np.argpartition(-drow, -kout)[-kout:]
+
+            # Discard the ones beyond threshold
+            ind = ind[drow[ind] <= threshold]
+
+            # Indices are not sorted within ind, so we need to sort them
+            # in descending order by distance (more efficient in the next step)
+            ind = ind[np.argsort(drow[ind])][::-1]
+
+            for ii in range(int(sizes[isi])):
+                # Internal edges
+                neis = list(range(i, i+int(sizes[isi])))
+                # Remove self
+                neis.remove(i+ii)
+                # External edges
+                neis.extend(list(ind + n_fixede))
+                neighbors.append(neis)
+            i += int(sizes[isi])
+
+        # New data neighbors
+        for i in range(n_fixede, Ne):
             drow = cdist(rvectse[[i]], rvectse, metric=metric)[0]
 
             # set distance to self as a high number, to avoid self
             drow[i] = drow.max() + 1
 
             # Find largest k negative distances (k neighbors)
-            if i < n_fixede:
-                ki = int(sizese[i] - 1) + kout
-            else:
-                ki = k
-
-            ind = np.argpartition(-drow, -ki)[-ki:]
+            ind = np.argpartition(-drow, -k)[-k:]
 
             # Discard the ones beyond threshold
             ind = ind[drow[ind] <= threshold]
@@ -484,10 +523,7 @@ class Averages(object):
 
         return closest
 
-    def __call__(
-            self,
-            select_features=True,
-            ):
+    def __call__(self):
         '''Run SemiAnnotate with averages of the atlas
 
         Args:
@@ -507,8 +543,7 @@ class Averages(object):
 
         self.merge_atlas_newdata()
 
-        if select_features:
-            self.select_features()
+        self.select_features()
 
         self.compute_neighbors()
 

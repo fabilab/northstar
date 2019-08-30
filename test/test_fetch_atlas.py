@@ -33,6 +33,16 @@ def test_fetch_Darmanis_2015():
     assert('number_of_cells' in atlas)
 
 
+def test_fetch_Enge_2017():
+    af = AtlasFetcher()
+    atlas = af.fetch_atlas('Enge_2017')
+    assert(isinstance(atlas, dict))
+    assert('counts' in atlas)
+    assert('number_of_cells' in atlas)
+    counts = atlas['counts'].loc[['INS', 'GCG', 'PPY']]
+    assert(counts.loc['INS', 'beta'] > counts.loc['INS', 'acinar'])
+
+
 def test_fetch_multiple():
     af = AtlasFetcher()
     atlas = af.fetch_multiple_atlases(['Darmanis_2015', 'Enge_2017'])
@@ -49,7 +59,7 @@ def test_fetch_Darmanis_2015_subsample():
     assert('cell_types' in atlas)
 
 
-def test_fetch_multiple():
+def test_fetch_multiple_subsample():
     af = AtlasFetcher()
     atlas = af.fetch_multiple_atlases(
             ['Darmanis_2015', 'Enge_2017'],

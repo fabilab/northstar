@@ -22,6 +22,7 @@ class Subsample(object):
             self,
             atlas,
             new_data,
+            features=None,
             n_features_per_cell_type=30,
             n_features_overdispersed=500,
             n_pcs=20,
@@ -60,6 +61,14 @@ class Subsample(object):
             convention, so it must have cell names as rows (obs_names) and
             features as columns (var_names) and this class will transpose it.
 
+            features (list of str or None): list of features to select after
+            normalization. If None, features will be selected automatically
+            based on the two next arguments, 'n_features_per_cell_type' and
+            'n_features_overdispersed'. Notice that to ensure a consistent
+            normalization of the atlas and the new data, feature selection
+            needs to happen after normalization, so it is not recommended to
+            input a pre-feature selected matrix.
+
             n_features_per_cell_type (int): number of features marking each
             fixed column (atlas cell type).
 
@@ -94,6 +103,7 @@ class Subsample(object):
 
         self.atlas = atlas
         self.new_data = new_data
+        self.features = features
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
         self.n_pcs = n_pcs
@@ -209,13 +219,24 @@ class Subsample(object):
         '''
         # Shorten arg names
         matrix = self.matrix
+        features = self.features
+        features_all = list(self.features_all)
+
+        if features is not None:
+            ind_features = []
+            for fea in features:
+                ind_features.append(features_all.index(fea))
+            self.features_selected = features
+            self.matrix = self.matrix[ind_features]
+            return
+
         aa = self.atlas_annotations
         aau = self.cell_types
         n_fixed = self.n_fixed
         nf1 = self.n_features_per_cell_type
         nf2 = self.n_features_overdispersed
 
-        features = set()
+        ind_features = set()
 
         # Atlas markers
         if aau > 1:
@@ -226,19 +247,19 @@ class Subsample(object):
                 ge2 = (matrix[:, :n_fixed].sum(axis=1) - ge1 * li) / (n_fixed - li)
                 fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
                 markers = np.argpartition(fold_change, -nf1)[-nf1:]
-                features |= set(markers)
+                ind_features |= set(markers)
 
         # Unbiased on new data
         nd_mean = matrix[:, n_fixed:].mean(axis=1)
         nd_var = matrix[:, n_fixed:].var(axis=1)
         fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
         overdispersed = np.argpartition(fano, -nf2)[-nf2:]
-        features |= set(overdispersed)
-        features = list(features)
+        ind_features |= set(overdispersed)
 
-        self.features_selected = features
+        ind_features = list(ind_features)
 
-        self.matrix = self.matrix[features]
+        self.features_selected = self.features_all[ind_features]
+        self.matrix = self.matrix[ind_features]
 
     def compute_neighbors(self):
         '''Compute k nearest neighbors from a matrix with fixed nodes
@@ -428,10 +449,7 @@ class Subsample(object):
 
         return closest
 
-    def __call__(
-            self,
-            select_features=True,
-            ):
+    def __call__(self):
         '''Run SemiAnnotate with subsamples of the atlas
 
         Args:
@@ -451,8 +469,8 @@ class Subsample(object):
 
         self.merge_atlas_newdata()
 
-        if select_features:
-            self.select_features()
+        self.select_features()
+
         self.compute_neighbors()
 
         self.compute_communities()

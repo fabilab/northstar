@@ -69,7 +69,10 @@ class Averages(object):
             features (list of str or None): list of features to select after
             normalization. If None, features will be selected automatically
             based on the two next arguments, 'n_features_per_cell_type' and
-            'n_features_overdispersed'.
+            'n_features_overdispersed'. Notice that to ensure a consistent
+            normalization of the atlas and the new data, feature selection
+            needs to happen after normalization, so it is not recommended to
+            input a pre-feature selected matrix.
 
             n_features_per_cell_type (int): number of features marking each
             fixed column (atlas cell type).

@@ -109,7 +109,7 @@ class AtlasFetcher(object):
 
         return res
 
-    def fetch_multiple_atlases(self, atlas_names, kind='averages'):
+    def fetch_multiple_atlases(self, atlas_names, kind='average'):
         '''Fetch and combine multiple atlases
 
         Args:

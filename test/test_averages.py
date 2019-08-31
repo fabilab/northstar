@@ -120,15 +120,14 @@ def test_neighbors_small():
         assert(isinstance(nei, list))
 
 
-def test_run_small():
-    aname1 = 'Baron_2016'
-    aname = 'Enge_2017'
+def test_run_mock_cells():
+    aname = 'Darmanis_2015_nofetal'
     atlas = AtlasFetcher().fetch_atlas(
-            aname1, kind='subsample')
+            aname, kind='average')
 
-    ind = [0, 10, 20, 30, 40, 50, 60]
+    ind = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 4, 5]
     matrix = atlas['counts'].iloc[:, ind]
-    cell_types = atlas['cell_types'].values[ind]
+    cell_types = atlas['counts'].columns.values[ind]
 
     sa = Averages(
             aname,
@@ -137,16 +136,31 @@ def test_run_small():
             )
     sa()
 
-    # NOTICE: this test only checks for exceptions raised during the whole
-    # pipeline but not for identities. The reason is that with so few cells
-    # it becomes difficult to get the numbers right
+    assert((cell_types == sa.membership).mean() > 0.99)
+
+
+def test_run_within_atlas():
+    aname = 'Darmanis_2015_nofetal'
+    atlas = AtlasFetcher().fetch_atlas(
+            aname, kind='subsample')
+
+    ind = [0, 10, 20, 30, 40, 50, 60, 80]
+    matrix = atlas['counts'].iloc[:, ind]
+    cell_types = atlas['cell_types'].values[ind]
+
+    sa = Averages(
+            aname,
+            matrix,
+            n_pcs=6,
+            )
+    sa()
+
     print(cell_types)
     print(sa.membership)
     print((cell_types == sa.membership).mean())
+    assert((cell_types == sa.membership).mean() > 0.7)
 
-    # FIXME: we should try to fix this although it's a corner case
-    assert((cell_types == sa.membership).mean() >= 0.9)
 
 if __name__ == '__main__':
 
-    test_run_small()
+    test_run_within_atlas()

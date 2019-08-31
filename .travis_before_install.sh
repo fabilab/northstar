@@ -47,6 +47,7 @@ pip install coveralls
 pip install numpy
 pip install scipy
 pip install pandas
+pip install scikit-learn
 pip install loompy
 
 echo "Install python-igraph. It takes care of installing the igraph C library"

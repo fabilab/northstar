@@ -148,8 +148,8 @@ class Averages(object):
                 at['counts'] = at['counts'].T.to_df()
 
             # even within AnnData, metadata colunms are pandas.DataFrame
-            if not isinstance(at['number_of_cells'], pd.DataFrame):
-                raise ValueError('atlas["number_of_cells"] must be a dataframe')
+            if not isinstance(at['number_of_cells'], pd.Series):
+                raise ValueError('atlas["number_of_cells"] must be a series')
             if at['counts'].shape[1] != at['number_of_cells'].shape[0]:
                 raise ValueError(
                     'atlas counts and number_of_cells must have the same cells')
@@ -369,9 +369,10 @@ class Averages(object):
         # distance matrix
         n_fixede = int(np.sum(sizes[:n_fixed]))
         neighbors = []
-        i = 0
+
         # Treat things within and outside of the atlas differently
         # Atlas neighbors
+        i = 0
         for isi in range(n_fixed):
             # Find the nearest neighbors in the new data
             drow = cdist(rvects[[isi]], rvects[n_fixed:], metric=metric)[0]
@@ -409,13 +410,15 @@ class Averages(object):
 
             # Indices are not sorted within ind, so we need to sort them
             # in descending order by distance (more efficient in the next step)
-            ind = ind[np.argsort(drow[ind])][::-1]
+            ind = ind[np.argsort(drow[ind])]
 
-            #FIXME
-            #print(i - n_fixede)
+            ##FIXME
+            ##print(i - n_fixede)
             #print(self.cell_types)
-            #print(drow)
-            #import ipdb; ipdb.set_trace()
+            #print(ind)
+            #print(drow[ind])
+            #print(drow[:n_fixed])
+            ##import ipdb; ipdb.set_trace()
 
             neighbors.append(list(ind))
 

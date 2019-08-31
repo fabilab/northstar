@@ -144,21 +144,43 @@ def test_run_within_atlas():
     atlas = AtlasFetcher().fetch_atlas(
             aname, kind='subsample')
 
-    ind = [0, 10, 20, 30, 40, 50, 60, 80]
+    ind = [0, 2, 5, 8, 10, 15, 20, 25, 28, 30, 35, 38, 40, 45, 50, 60, 70, 75, 80, 90]
     matrix = atlas['counts'].iloc[:, ind]
     cell_types = atlas['cell_types'].values[ind]
 
+    #FIXME
+    # Load custom atlas for fast iterations
+    import loompy
+    atlas = {}
+    path = '../atlas_averages/data/averages/'+aname+'.loom'
+    with loompy.connect(path) as dsl:
+        mat = dsl.layers[''][:, :]
+        features = dsl.ra['GeneName']
+        cell_typ = dsl.ca['CellType']
+        n_of_cells = dsl.ca['NumberOfCells']
+    atlas['counts'] = pd.DataFrame(
+                data=mat,
+                index=features,
+                columns=cell_typ,
+                )
+    atlas['number_of_cells'] = pd.Series(
+                data=n_of_cells,
+                index=cell_typ,
+                )
+
     sa = Averages(
-            aname,
+            atlas,
             matrix,
-            n_pcs=6,
+            n_features_per_cell_type=2,
+            n_features_overdispersed=5,
+            n_pcs=9,
             )
     sa()
 
-    print(cell_types)
-    print(sa.membership)
+    for i in range(len(cell_types)):
+        print('{:10s}    {:10s}'.format(cell_types[i], sa.membership[i]))
     print((cell_types == sa.membership).mean())
-    assert((cell_types == sa.membership).mean() > 0.7)
+    assert((cell_types == sa.membership).mean() > 0.8)
 
 
 if __name__ == '__main__':

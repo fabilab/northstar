@@ -78,21 +78,7 @@ class AtlasFetcher(object):
             os.remove(path)
 
         # Package into dataframes
-        if kind == 'average':
-            counts = pd.DataFrame(
-                data=matrix,
-                index=features,
-                columns=cell_types,
-                )
-            number_of_cells = pd.Series(
-                data=n_of_cells,
-                index=cell_types,
-                )
-            res = {
-                'counts': counts,
-                'number_of_cells': number_of_cells,
-            }
-        else:
+        if kind == 'subsample':
             counts = pd.DataFrame(
                 data=matrix,
                 index=features,
@@ -105,6 +91,20 @@ class AtlasFetcher(object):
             res = {
                 'counts': counts,
                 'cell_types': meta,
+            }
+        else:
+            counts = pd.DataFrame(
+                data=matrix,
+                index=features,
+                columns=cell_types,
+                )
+            number_of_cells = pd.Series(
+                data=n_of_cells,
+                index=cell_types,
+                )
+            res = {
+                'counts': counts,
+                'number_of_cells': number_of_cells,
             }
 
         return res

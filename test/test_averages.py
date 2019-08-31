@@ -121,34 +121,30 @@ def test_neighbors_small():
 
 
 def test_run_small():
-    genes = AtlasFetcher().fetch_atlas('Enge_2017')['counts'].index.values
-    matrix = pd.DataFrame(
-        index=genes,
-        columns=['cell1', 'cell2', 'cell3', 'cell4'],
-        data=np.zeros((len(genes), 4)))
-    matrix.loc['INS'] = [2302,  123,    0, 2300]
-    matrix.loc['GCG'] = [   0, 5034, 6453,    0]
+    aname = 'Enge_2017'
+    atlas = AtlasFetcher().fetch_atlas(
+            aname, kind='subsample')
 
-    n_pcs = 2
-    k = 2
-    threshold = 1000
+    ind = [0, 10, 20, 30, 40, 50, 60]
+    matrix = atlas['counts'].iloc[:, ind]
+    cell_types = atlas['cell_types'].values[ind]
 
     sa = Averages(
-            'Enge_2017',
+            aname,
             matrix,
-            n_cells_per_type=20,
-            n_neighbors=k,
-            threshold_neighborhood=threshold,
-            n_pcs=n_pcs,
-            distance_metric='correlation',
-            n_neighbors_out_of_atlas=1,
+            n_pcs=10,
             )
     sa()
 
+    # NOTICE: this test only checks for exceptions raised during the whole
+    # pipeline but not for identities. The reason is that with so few cells
+    # it becomes difficult to get the numbers right
+    print(cell_types)
     print(sa.membership)
+    print((cell_types == sa.membership).mean())
 
     # FIXME: we should try to fix this although it's a corner case
-    assert(tuple(sa.membership) == ('beta', 'alpha', 'alpha', 'beta'))
+    assert((cell_types == sa.membership).mean() >= 0.9)
 
 if __name__ == '__main__':
 

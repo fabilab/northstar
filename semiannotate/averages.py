@@ -181,7 +181,7 @@ class Averages(object):
     def fetch_atlas_if_needed(self):
         '''Fetch atlas(es) if needed'''
 
-        if np.isscalar(self.atlas):
+        if isinstance(self.atlas, str):
             self.atlas = AtlasFetcher().fetch_atlas(self.atlas)
         elif isinstance(self.atlas, list) or isinstance(self.atlas, tuple):
             self.atlas = AtlasFetcher().fetch_multiple_atlases(self.atlas)
@@ -382,7 +382,7 @@ class Averages(object):
 
             # Indices are not sorted within ind, so we need to sort them
             # in descending order by distance (more efficient in the next step)
-            ind = ind[np.argsort(drow[ind])][::-1]
+            ind = ind[np.argsort(drow[ind])]
 
             for ii in range(int(sizes[isi])):
                 # Internal edges
@@ -410,6 +410,12 @@ class Averages(object):
             # Indices are not sorted within ind, so we need to sort them
             # in descending order by distance (more efficient in the next step)
             ind = ind[np.argsort(drow[ind])][::-1]
+
+            #FIXME
+            #print(i - n_fixede)
+            #print(self.cell_types)
+            #print(drow)
+            #import ipdb; ipdb.set_trace()
 
             neighbors.append(list(ind))
 

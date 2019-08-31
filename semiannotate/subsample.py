@@ -170,10 +170,12 @@ class Subsample(object):
     def fetch_atlas_if_needed(self):
         '''Fetch atlas(es) if needed'''
 
-        if np.isscalar(self.atlas):
-            self.atlas = AtlasFetcher().fetch_atlas(self.atlas)
+        if isinstance(self.atlas, str):
+            self.atlas = AtlasFetcher().fetch_atlas(self.atlas,
+                    kind='subsample')
         elif isinstance(self.atlas, list) or isinstance(self.atlas, tuple):
-            self.atlas = AtlasFetcher().fetch_multiple_atlases(self.atlas)
+            self.atlas = AtlasFetcher().fetch_multiple_atlases(self.atlas,
+                    kind='subsample')
 
     def merge_atlas_newdata(self):
         '''Merge the averaged atlas data and the new data
@@ -230,8 +232,8 @@ class Subsample(object):
             self.matrix = self.matrix[ind_features]
             return
 
-        aa = self.atlas_annotations
-        aau = self.cell_types
+        aa = self.cell_types
+        aau = list(np.unique(aa))
         n_fixed = self.n_fixed
         nf1 = self.n_features_per_cell_type
         nf2 = self.n_features_overdispersed
@@ -239,12 +241,12 @@ class Subsample(object):
         ind_features = set()
 
         # Atlas markers
-        if aau > 1:
+        if len(aau) > 1:
             for au in aau:
-                icol = (aa == au).nonzero()[0]
-                li = len(icol)
-                ge1 = matrix[:, icol].mean(axis=1)
-                ge2 = (matrix[:, :n_fixed].sum(axis=1) - ge1 * li) / (n_fixed - li)
+                icol1 = (aa == au).nonzero()[0]
+                icol2 = (aa != au).nonzero()[0]
+                ge1 = matrix[:, icol1].mean(axis=1)
+                ge2 = matrix[:, icol2].mean(axis=1)
                 fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
                 markers = np.argpartition(fold_change, -nf1)[-nf1:]
                 ind_features |= set(markers)
@@ -333,7 +335,7 @@ class Subsample(object):
 
             # Indices are not sorted within ind, we sort them to help
             # debugging even though it is not needed
-            ind = ind[np.argsort(drow[ind])][::-1]
+            ind = ind[np.argsort(drow[ind])]
 
             nbi.extend(list(ind))
 
@@ -359,7 +361,7 @@ class Subsample(object):
 
         matrix = self.matrix
         aa = self.cell_types
-        aau = np.unique(aa)
+        aau = list(np.unique(aa))
         n_fixed = self.n_fixed
         clustering_metric = self.clustering_metric
         resolution_parameter = self.resolution_parameter
@@ -413,7 +415,7 @@ class Subsample(object):
         self.membership = np.array(
                 [str(x) for x in membership],
                 dtype='U{:}'.format(lstring))
-        for i, ct in enumerate(self.cell_types):
+        for i, ct in enumerate(aau):
             self.membership[self.membership == str(i)] = ct
 
     def estimate_closest_atlas_cell_type(self):

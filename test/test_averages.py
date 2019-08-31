@@ -121,9 +121,10 @@ def test_neighbors_small():
 
 
 def test_run_small():
+    aname1 = 'Baron_2016'
     aname = 'Enge_2017'
     atlas = AtlasFetcher().fetch_atlas(
-            aname, kind='subsample')
+            aname1, kind='subsample')
 
     ind = [0, 10, 20, 30, 40, 50, 60]
     matrix = atlas['counts'].iloc[:, ind]

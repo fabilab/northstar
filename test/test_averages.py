@@ -136,7 +136,7 @@ def test_run_mock_cells():
             )
     sa()
 
-    assert((cell_types == sa.membership).mean() > 0.99)
+    assert((cell_types == sa.membership).mean() > 0.9)
 
 
 def test_run_within_atlas():
@@ -162,7 +162,7 @@ def test_run_within_atlas():
     for i in range(len(cell_types)):
         print('{:10s}    {:10s}'.format(cell_types[i], sa.membership[i]))
     print((cell_types == sa.membership).mean())
-    assert((cell_types == sa.membership).mean() > 0.8)
+    assert((cell_types == sa.membership).mean() > 0.7)
 
 
 if __name__ == '__main__':

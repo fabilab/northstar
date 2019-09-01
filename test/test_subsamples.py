@@ -43,15 +43,21 @@ def test_run_across_atlas():
     matrix = atlas['counts']
     cell_types = atlas['cell_types'].values
 
-    sa = Subsample('Baron_2016', matrix)
+    sa = Subsample(
+        'Baron_2016',
+        matrix,
+        n_pcs=25,
+        n_features_per_cell_type=3,
+        n_features_overdispersed=200,
+        )
     sa()
 
     # Nobody's perfect
     # Baron annotates Stellate cells more accurately, so we skip them
-    assert((cell_types == sa.membership)[:60].mean() >= 0.7)
+    assert((cell_types == sa.membership)[:60].mean() >= 0.9)
 
 
 if __name__ == '__main__':
 
-    test_run_within_atlas_means()
+    test_run_across_atlas()
 

@@ -11,7 +11,7 @@ if [ -z $TAG2 ]; then
   echo 'No TAG2, exit'
   exit 0;
 fi
-if [ $TAG1 != 'release' ] || [ "version = $TAG2" != $(cat northstar/version.py) ]; then
+if [ $TAG1 != 'release' ] || [ "version = $TAG2" != $(cat northstar/_version.py) ]; then
   echo 'No release tag or wrong version, exit'
   exit 0;
 fi

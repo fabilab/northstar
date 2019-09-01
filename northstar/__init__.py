@@ -5,7 +5,7 @@
 from .averages import Averages
 from .subsample import Subsample
 from .fetch_atlas import AtlasFetcher
-from .version import version
+from ._version import version
 
 
 __all__ = ['Aveages', 'Subsample', 'AtlasFetcher', 'version']

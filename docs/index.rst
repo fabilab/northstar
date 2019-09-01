@@ -26,6 +26,7 @@ Installation
 `northstar` is a pure Python package, so you can install it using pip:
 
 .. code-block:: bash
+
   pip install northstar
 
 Dependencies
@@ -45,6 +46,7 @@ To automatically download and use our curated online atlas collection at `https:
 To install `leidenalg in its development branch`:
 
 .. code-block:: bash
+
   git clone --branch develop --single-branch https://github.com/vtraag/leidenalg.git
   cd leidenalg
   python setup.py install
@@ -52,11 +54,13 @@ To install `leidenalg in its development branch`:
 Once all dependencies are installed, clone this repo:
 
 .. code-block:: bash
+
   git clone https://github.com/iosonofabio/northstar.git
 
 Then `cd` into it and run the setup the usual Python way:
 
 .. code-block:: bash
+
   cd northstar
   python setup.py install
 
@@ -64,6 +68,7 @@ Usage example
 -------------
 
 .. code-block:: python
+
   import northstar
   
   # Choose an atlas

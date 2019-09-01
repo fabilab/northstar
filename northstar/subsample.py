@@ -1,7 +1,7 @@
 # vim: fdm=indent
 # author:     Fabio Zanini
 # date:       5/08/19
-# content:    SemiAnnotate with atlas subsampling
+# content:    Atlas subsampling
 __all__ = ['Subsample']
 
 
@@ -345,7 +345,7 @@ class Subsample(object):
         '''Compute communities from a matrix with fixed nodes
 
         Returns:
-            None, but SemiAnnotate.membership is set as an array of int with
+            None, but Subsample.membership is set as an array of int with
             size N - n_fixed with the community/cluster membership of all
             columns except the first n_fixed ones.
         '''
@@ -452,15 +452,15 @@ class Subsample(object):
         return closest
 
     def __call__(self):
-        '''Run SemiAnnotate with subsamples of the atlas
+        '''Run with subsamples of the atlas
 
         Args:
             select_features (bool): Whether to select features or to use the
             full data matrix. The latter is useful if a different feature
-            selection was performed outside of SemiAnnotate.
+            selection was performed outside of this package.
 
         Returns:
-            None, but this instance of SemiAnnotate acquired the property
+            None, but this instance of Subsample acquired the property
             `membership` containing the cluster memberships (cell types) of the
             columns except the first n_fixed. The first n_fixed columns are
             assumes to have distinct memberships in the range [0, n_fixed - 1].

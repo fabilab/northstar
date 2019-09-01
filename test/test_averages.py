@@ -4,7 +4,7 @@
 # content:    Test the algorithm on same artificial data
 import numpy as np
 import pandas as pd
-from semiannotate import Averages, AtlasFetcher
+from northstar import Averages, AtlasFetcher
 
 
 def test_constructor():

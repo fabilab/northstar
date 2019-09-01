@@ -11,7 +11,7 @@ if [ -z $TAG2 ]; then
   echo 'No TAG2, exit'
   exit 0;
 fi
-if [ $TAG1 != 'release' ] || [ "version = $TAG2" != $(cat semiannotate/version.py) ]; then
+if [ $TAG1 != 'release' ] || [ "version = $TAG2" != $(cat northstar/version.py) ]; then
   echo 'No release tag or wrong version, exit'
   exit 0;
 fi
@@ -52,5 +52,5 @@ pip install twine
 python setup.py sdist --dist-dir dist/
 
 # Upload source
-twine upload --repository-url "${TWINE_REPOSITORY}" -u "${TWINE_USERNAME}" -p "${TWINE_PASSWORD}" dist/semiannotate-${VERSION}.tar.gz
+twine upload --repository-url "${TWINE_REPOSITORY}" -u "${TWINE_USERNAME}" -p "${TWINE_PASSWORD}" dist/northstar-${VERSION}.tar.gz
 

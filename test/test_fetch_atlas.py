@@ -5,7 +5,7 @@
 #             https://iosonofabio.github.io/atlas_averages/
 import numpy as np
 import pandas as pd
-from semiannotate import AtlasFetcher
+from northstar import AtlasFetcher
 
 
 def test_constructor():

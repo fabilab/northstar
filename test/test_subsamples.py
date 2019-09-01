@@ -4,7 +4,7 @@
 # content:    Test the algorithm on same artificial data
 import numpy as np
 import pandas as pd
-from semiannotate import Subsample, AtlasFetcher
+from northstar import Subsample, AtlasFetcher
 
 
 def test_run_within_atlas():

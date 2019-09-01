@@ -1,28 +1,28 @@
-[![Build Status](https://travis-ci.org/iosonofabio/semiannotate.svg?branch=master)](https://travis-ci.org/iosonofabio/semiannotate)
-[![Coverage Status](https://coveralls.io/repos/github/iosonofabio/semiannotate/badge.svg?branch=master)](https://coveralls.io/github/iosonofabio/semiannotate?branch=master)
+[![Build Status](https://travis-ci.org/iosonofabio/northstar.svg?branch=master)](https://travis-ci.org/iosonofabio/northstar)
+[![Coverage Status](https://coveralls.io/repos/github/iosonofabio/northstar/badge.svg?branch=master)](https://coveralls.io/github/iosonofabio/northstar?branch=master)
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
-[![ReleaseVersion](https://img.shields.io/pypi/v/semiannotate.svg)](https://pypi.org/project/semiannotate/)
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fsemiannotate.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fsemiannotate?ref=badge_shield)
+[![ReleaseVersion](https://img.shields.io/pypi/v/northstar.svg)](https://pypi.org/project/northstar/)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar?ref=badge_shield)
 <!--
-[![Documentation Status](https://readthedocs.org/projects/semiannotate/badge/?version=master)](https://semiannotate.readthedocs.io/en/master)
+[![Documentation Status](https://readthedocs.org/projects/northstar/badge/?version=master)](https://northstar.readthedocs.io/en/master)
 -->
 
 ![Logo](logo.png)
-# semiannotate
-Atlas-based cell type annotation, with freedom to be queer.
+# northstar
+Cell type annotation guided by cell atlases, with freedom to be queer.
 
 ## Brief description
-`semiannotate` is a Python package for single cell gene expression analysis. It computes cell clusters, which often represent cell types or cell states, similar to other
-algorithms such as Louvain and Leiden community detection (graph-based) and DBSCAN and HDBSCAN (distance-based). Unlike those methods, however, SemiAnnotate is
-semi-supervised by a previously annotated cell atlas. Given cluster/cell type annotations from the training atlas and a new, unannotated dataset, SemiAnnotate
+`northstar` is a Python package for single cell gene expression analysis. It computes cell clusters, which often represent cell types or cell states, similar to other
+algorithms such as Louvain and Leiden community detection (graph-based) and DBSCAN and HDBSCAN (distance-based). Unlike those methods, however, northstar is
+semi-supervised by a previously annotated cell atlas. Given cluster/cell type annotations from the training atlas and a new, unannotated dataset, northstar
 performs clustering of the new dataset allowing cells to either belong to an atlas cluster or to form new clusters.
 
 ## Rationale
-By combining the information provided by the atlas with the freedom to call new clusters, SemiAnnotate tries to combine the best of both unsupervised and
+By combining the information provided by the atlas with the freedom to call new clusters, northstar tries to combine the best of both unsupervised and
 supervised machine learning. Since tissues can be extremely heterogeneous, the freedom to discover new queer clusters at a reasonable computational cost
-is the main strength of semiannotate.
+is the main strength of northstar.
 
-Also, semiannotate was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride), so we couldn't abstain from showing our support.
+Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride), so we couldn't abstain from showing our support.
 
 ## Installation
 For now, you can use the development version.
@@ -40,19 +40,20 @@ cd leidenalg
 python setup.py install
 ```
 
-### Installing semiannotate
+### Installation
 Once all dependencies are installed, clone this repo:
 ```bash
-git clone https://github.com/iosonofabio/semiannotate.git
+git clone https://github.com/iosonofabio/northstar.git
 ```
 Then `cd` into it and run the setup the usual Python way:
 ```bash
-cd semiannotate
+cd northstar
 python setup.py install
 ```
 
 ## Usage
 ```python
+from northstar import Averages
 
 # Get a gene expression matrix of atlas data (a random matrix
 # here for simplicity). Each row is a feature/gene, each
@@ -74,15 +75,12 @@ new_dataset = np.random.rand(L, Nnew).astype(np.float32)
 matrix = np.hstrack([atlas_averages, new_dataset])
 sizes = np.concatenate([atlas_sizes, np.ones(Nnew, int)])
 
-# Initialize SemiAnnotate class
-sa = SemiAnnotate(
+# Initialize northstar classes
+sa = Averages(
+        atlas='Darmanis_2015',
         matrix,
-        sizes=sizes,
-        n_fixed=Na,
         n_neighbors=5,
-        n_pcs=20,
-        distance_metric='correlation',
-        threshold_neighborhood=0.8,
+        n_pcs=10,
         )
 
 # Run the classifier
@@ -93,13 +91,13 @@ membership = sa.membership
 ```
 
 ## Roadmap
-We are planning to release semiannotate on Pypi and write up a paper
+We are planning to release on Pypi and write up a paper
 to describe it.
 
 ## License notes
 NOTE: The module leidenalg to perform graph-based clstering is released
 under the GLP3 license. You agree with those licensing terms if you use
-leidenalg within SemiAnnotate.
+leidenalg within northstar.
 
 
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fsemiannotate.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fsemiannotate?ref=badge_large)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar?ref=badge_large)

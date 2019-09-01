@@ -1,8 +1,8 @@
 # vim: fdm=indent
 # author:     Fabio Zanini
 # date:       17/06/19
-# content:    SemiAnnotate with atlas averages
-__all__ = ['SemiAnnotate']
+# content:    Atlas averages
+__all__ = ['Averages']
 
 
 import numpy as np
@@ -428,7 +428,7 @@ class Averages(object):
         '''Compute communities from a matrix with fixed nodes
 
         Returns:
-            None, but SemiAnnotate.membership is set as an array with
+            None, but Averages.membership is set as an array with
             size N - n_fixed with the atlas cell types of all cells from the
             new dataset.
         '''
@@ -536,15 +536,15 @@ class Averages(object):
         return closest
 
     def __call__(self):
-        '''Run SemiAnnotate with averages of the atlas
+        '''Run with averages of the atlas
 
         Args:
             select_features (bool): Whether to select features or to use the
             full data matrix. The latter is useful if a different feature
-            selection was performed outside of SemiAnnotate.
+            selection was performed outside of this package.
 
         Returns:
-            None, but this instance of SemiAnnotate acquired the property
+            None, but this instance of Averages acquired the property
             `membership` containing the cluster memberships (cell types) of the
             columns except the first n_fixed. The first n_fixed columns are
             assumes to have distinct memberships in the range [0, n_fixed - 1].

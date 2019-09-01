@@ -11,7 +11,7 @@ def read(fname):
 
 def update_version():
     ver = read('VERSION').rstrip('\n')
-    fdn = os.path.join(os.path.dirname(__file__), 'semiannotate')
+    fdn = os.path.join(os.path.dirname(__file__), 'northstar')
     fn = os.path.join(fdn, 'version.py')
     with open(fn, 'wt') as f:
         f.write('version = "{:}"'.format(ver))
@@ -19,22 +19,22 @@ def update_version():
 
 
 setup(
-    name="semiannotate",
+    name="northstar",
     version=update_version(),
     author="Fabio Zanini",
     author_email="fabio.zanini@fastmail.fm",
-    description="Semi-supervised k-nearest neighbor graphs.",
+    description="Cell type annotation guided by cell atlases, with freedom to be queer.",
     license="MIT",
     keywords="graph semi-supervised",
-    url="https://github.com/iosonofabio/semiannotate",
-    packages=['semiannotate'] + ['semiannotate.' + s for s in find_packages(where='semiannotate')],
+    url="https://github.com/iosonofabio/northstar",
+    packages=['northstar'] + ['northstar.' + s for s in find_packages(where='northstar')],
     long_description='''
     Atlas-based cell type annotation, with freedom to be queer.
 
 
     NOTE: The module leidenalg to perform graph-based clstering is released
     under the GLP3 license. You agree with those licensing terms if you use
-    leidenalg within SemiAnnotate.
+    leidenalg within northstar.
     ''',
     classifiers=[
         "Development Status :: 3 - Alpha",

@@ -6,14 +6,17 @@ matrix:
       python: 3.7
       os: linux
       dist: xenial
+      script: ./.travis_test.sh
     - stage: test
       python: 3.6
       os: linux
       dist: xenial
+      script: ./.travis_test.sh
     - stage: test
       env: CC=gcc PYTHON_VERSION='3.7'
       language: generic
       os: osx
+      script: ./.travis_test.sh
     - stage: coverage
       python: 3.7
       os: linux

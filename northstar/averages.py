@@ -39,75 +39,71 @@ class Averages(object):
 
         Args:
             atlas (str, list of str, or dict): cell atlas to use. If a str,
-            the corresponding cell atlas from:
+             the corresponding cell atlas from:
 
-            https://github.com/iosonofabio/atlas_averages/blob/master/table.tsv
+             https://github.com/iosonofabio/atlas_averages/blob/master/table.tsv
 
-            is fetched (check the first column for atlas names). If a list of
-            str, multiple atlases will be fetched and combined. Only features
-            that are in all atlases will be kept. If you use this feature, be
-            careful to not mix atlases from different species. If a dict, it
-            describes a custom cell atlas and must have two entries.
-            'number_of_cells' is a pandas Series with the cell types as
-            index and the number of cells to use for each cell type as values.
-            'counts' is a pandas.DataFrame or an anndata.AnnData structure.
-            If a DataFrame, it must have features as rows and cell types as
-            columns; if an AnnData, it is reversed (AnnData uses a
-            different convention) and it must have the cell types as rows
-            (obs_names) and the features as columns (var_names). If an AnnData,
-            it will be converted into a DataFrame.
+             is fetched (check the first column for atlas names). If a list of
+             str, multiple atlases will be fetched and combined. Only features
+             that are in all atlases will be kept. If you use this feature, be
+             careful to not mix atlases from different species. If a dict, it
+             describes a custom cell atlas and must have two entries.
+             'number_of_cells' is a pandas Series with the cell types as
+             index and the number of cells to use for each cell type as values.
+             'counts' is a pandas.DataFrame or an anndata.AnnData structure.
+             If a DataFrame, it must have features as rows and cell types as
+             columns; if an AnnData, it is reversed (AnnData uses a
+             different convention) and it must have the cell types as rows
+             (obs_names) and the features as columns (var_names). If an AnnData,
+             it will be converted into a DataFrame.
 
             new_data (pandas.DataFrame or anndata.AnnData): the new data to be
-            clustered. If a dataframe, t must have features as rows and
-            cell names as columns (as in loom files). anndata uses the opposite
-            convention, so it must have cell names as rows (obs_names) and
-            features as columns (var_names) and this class will transpose it.
+             clustered. If a dataframe, t must have features as rows and
+             cell names as columns (as in loom files). anndata uses the opposite
+             convention, so it must have cell names as rows (obs_names) and
+             features as columns (var_names) and this class will transpose it.
 
             n_cells_per_type (None or int): if None, use the number of cells
-            per type from the atlas. Else, fix it to this number for all types.
+             per type from the atlas. Else, fix it to this number for all types.
 
             features (list of str or None): list of features to select after
-            normalization. If None, features will be selected automatically
-            based on the two next arguments, 'n_features_per_cell_type' and
-            'n_features_overdispersed'. Notice that to ensure a consistent
-            normalization of the atlas and the new data, feature selection
-            needs to happen after normalization, so it is not recommended to
-            input a pre-feature selected matrix.
+             normalization. If None, features will be selected automatically
+             based on the two next arguments, 'n_features_per_cell_type' and
+             'n_features_overdispersed'. Notice that to ensure a consistent
+             normalization of the atlas and the new data, feature selection
+             needs to happen after normalization, so it is not recommended to
+             input a pre-feature selected matrix.
 
             n_features_per_cell_type (int): number of features marking each
-            fixed column (atlas cell type).
+             fixed column (atlas cell type).
 
             n_features_overdispersed (int): number of unbiased, overdispersed
-            features to be picked from the new dataset.
+             features to be picked from the new dataset.
 
             n_pcs (int): number of principal components to keep in the weighted
-            PCA.
+             PCA.
 
             n_neighbors (int): number of neighbors in the similarity graph.
 
             n_neighbors_out_of_atlas (int): number of neighbors coming out of
-            the atlas nodes into the new dataset.
+             the atlas nodes into the new dataset.
 
-            distance_metric (str or function): metric to use as distance. If a
-            string, it should be a metric accepted by scipy.spatial.distance.cdist.
-            If a function, it should accept a (M x N)  and a (M x N1) data matrices
-            as input and return a (N x N1) distance matrix. N includes both the
-            fixed and the free columns, whereas N1 = N - n_fixed only includes the
-            free columns.
+            distance_metric (str): metric to use as distance. It should be a
+             metric accepted by scipy.spatial.distance.cdist.
 
             threshold_neighborhood (float): do not consider distances larger than this as
-            neighbors
+             neighbors
 
             clustering_metric (str): 'cpm' (default, Cell Potts Model) or
-            'modularity'. Sets the type of partition used in the clustering
-            step.
+             'modularity'. Sets the type of partition used in the clustering
+             step.
 
             resolution_parameter (float): number between 0 and 1 that sets
-            how easy it is for the clustering algorithm to make new clusters
+             how easy it is for the clustering algorithm to make new clusters
 
             normalize_counts (bool): whether to renormalize the counts at the
-            merging stage to make sure atlas and new data follow the same
-            normalization. Be careful if you turn this off.
+             merging stage to make sure atlas and new data follow the same
+             normalization. Be careful if you turn this off.
         '''
 
         self.atlas = atlas

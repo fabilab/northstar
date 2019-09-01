@@ -18,8 +18,7 @@ It uses one or more cell atlases as a baseline and assigns each cell of your dat
 cell type from the atlas(es) or to a novel cluster. northstar's superpower is that it learn from
 big data (atlases) but still allows queer cells to make their own cluster if they want to.
 
-northstar was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride),
-so we couldn't abstain from showing our support.
+northstar was mostly developed during `Pride Month <https://en.wikipedia.org/wiki/Gay_pride>`_, so we couldn't abstain from showing our support.
 
 
 Installation
@@ -38,7 +37,7 @@ Dependencies
 - `igraph` and `python-igraph`: this is best done by installing directly `python-igraph` via pip. That will also install the C core `iGraph` library. If you are on Windows, use the binaries as suggested on the `python-igraph` GitHub page.
 - `leidenalg`: you need the develop git branch (instruction here below).
 
-To automatically download and use our curated online atlas collection at https://iosonofabio.github.io/atlas_averages/, you will also need:
+To automatically download and use our curated online atlas collection at `https://iosonofabio.github.io/atlas_averages/ <https://iosonofabio.github.io/atlas_averages/>`_, you will also need:
 - `requests`
 - `loompy`
 
@@ -62,6 +61,7 @@ Then `cd` into it and run the setup the usual Python way:
 
 Usage example
 -------------
+
 .. code-block:: python
   import northstar
   

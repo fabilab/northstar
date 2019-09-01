@@ -25,15 +25,12 @@ setup(
     url="https://github.com/iosonofabio/northstar",
     packages=['northstar'] + ['northstar.' + s for s in find_packages(where='northstar')],
     long_description='''
-    Atlas-based cell type annotation, with freedom to be queer.
+    Cell type annotation guided by cell atlases, with freedom to be queer.
 
-
-    NOTE: The module leidenalg to perform graph-based clstering is released
-    under the GLP3 license. You agree with those licensing terms if you use
-    leidenalg within northstar.
+    See https://github.com/iosonofabio/northstar for the project's website.
     ''',
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Topic :: Utilities",
         "License :: OSI Approved :: MIT License",
     ],

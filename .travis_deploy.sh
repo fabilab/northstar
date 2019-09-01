@@ -7,6 +7,10 @@ fi
 TAG1=$(echo $TRAVIS_TAG | cut -f1 -d_)
 TAG2=$(echo $TRAVIS_TAG | cut -f2 -d_)
 TAG3=$(echo $TRAVIS_TAG | cut -f3 -d_)
+echo "TAG1: $TAG1"
+echo "TAG2: $TAG2"
+echo "TAG3: $TAG3"
+
 if [ -z $TAG2 ]; then
   echo 'No TAG2, exit'
   exit 0;

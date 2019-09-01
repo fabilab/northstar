@@ -5,7 +5,7 @@
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar?ref=badge_shield)
 [![Documentation Status](https://readthedocs.org/projects/northstar/badge/?version=master)](https://northstar.readthedocs.io/en/master)
 
-![Logo](logo.png)
+![Logo](docs/_static/logo.png)
 # northstar
 Cell type annotation guided by cell atlases, with freedom to be queer.
 
@@ -22,23 +22,29 @@ is the main strength of northstar.
 
 Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride), so we couldn't abstain from showing our support.
 
+
 ## Installation
 For now, you can use the development version.
 
-### Installing dependencies
-First, install the dependencies:
-- `numpy` and `scipy`: use your favourite package manager, e.g. conda, pip.
-- `iGraph` and `python-igraph`: this is best done by installing directly `python-igraph` via pip. That will also install the C core `iGraph` library. If you are on Windows, use the binaries as suggested on the `python-igraph` GitHub page.
+### Dependencies
+- `numpy`
+- `scipy`
+- `pandas`
+- `scikit-learn`
+- `igraph` and `python-igraph`: this is best done by installing directly `python-igraph` via pip. That will also install the C core `iGraph` library. If you are on Windows, use the binaries as suggested on the `python-igraph` GitHub page.
 - `leidenalg`: you need the develop git branch (instruction here below).
 
-### Installing leidenalg develop branch
+To automatically download and use our curated online atlas collection at https://iosonofabio.github.io/atlas_averages/, you will also need:
+- `requests`
+- `loompy`
+
+To install `leidenalg in its development branch`:
 ```bash
 git clone --branch develop --single-branch https://github.com/vtraag/leidenalg.git
 cd leidenalg
 python setup.py install
 ```
 
-### Installation
 Once all dependencies are installed, clone this repo:
 ```bash
 git clone https://github.com/iosonofabio/northstar.git
@@ -51,32 +57,25 @@ python setup.py install
 
 ## Usage
 ```python
-from northstar import Averages
+import northstar
 
-# Get a gene expression matrix of atlas data (a random matrix
-# here for simplicity). Each row is a feature/gene, each
-# column is the average of a cluster or cell type in the atlas
-Na = 10
+# Choose an atlas
+atlas_name = 'Darmanis_2015'
+
+# Get a gene expression matrix of the new dataset (here a
+# random matrix for simplicity)
+N = 200
 L = 50
-atlas_averages = np.random.rand(L, Na).astype(np.float32)
-
-# Get the size of each cluster in the atlas
-atlas_sizes = np.random.randint(100, size=Na)
-
-# Get a gene expression matrix of the new dataset, aligned with
-# the same features in the same order (here another random
-# matrix for simplicity)
-Nnew = 200
-new_dataset = np.random.rand(L, Nnew).astype(np.float32)
-
-# Concatenate the two datasets
-matrix = np.hstrack([atlas_averages, new_dataset])
-sizes = np.concatenate([atlas_sizes, np.ones(Nnew, int)])
+new_dataset = pd.DataFrame(
+    data=np.random.rand(L, N).astype(np.float32),
+    index=<gene_list>,
+    columns=['cell_'+str(i+1) for i in range(N)],
+    )
 
 # Initialize northstar classes
-sa = Averages(
+sa = northstar.Averages(
         atlas='Darmanis_2015',
-        matrix,
+        new_dataset,
         n_neighbors=5,
         n_pcs=10,
         )

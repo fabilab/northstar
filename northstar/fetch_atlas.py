@@ -14,7 +14,7 @@ import tempfile
 
 
 class AtlasFetcher(object):
-    '''Fetch averaged cell atlas data'''
+    '''Fetch cell atlas data from https://iosonofabio.github.io/atlas_averages/'''
     atlas_table = None
 
     def fetch_atlas_table(self):
@@ -32,12 +32,12 @@ class AtlasFetcher(object):
         return self.atlas_table.copy()
 
     def fetch_atlas(self, atlas_name, kind='average'):
-        '''Fetch an atlas from GitHub repo
+        '''Fetch an atlas from https://iosonofabio.github.io/atlas_averages/
 
         Args:
             atlas_name (str): the name of the atlas (see atlas table)
             kind (str): must be 'average' for the average expression of each
-            cell type, or 'subsample' for a subsample of the atlas.
+             cell type, or 'subsample' for a subsample of the atlas.
 
         Returns:
             a dictionary with two keys. 'counts' contains the gene expression
@@ -114,9 +114,9 @@ class AtlasFetcher(object):
 
         Args:
             atlas_names (list of str): the names of the atlases (see
-            atlas table)
+             atlas table)
             kind (str): must be 'average' for the average expression of each
-            cell type, or 'subsample' for a subsample of the atlas.
+             cell type, or 'subsample' for a subsample of the atlas.
 
         '''
         if kind not in ('average', 'subsample'):

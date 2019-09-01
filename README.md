@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![ReleaseVersion](https://img.shields.io/pypi/v/northstar.svg)](https://pypi.org/project/northstar/)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar?ref=badge_shield)
-[![Documentation Status](https://readthedocs.org/projects/northstar/badge/?version=master)](https://northstar.readthedocs.io/en/master)
+[![Documentation Status](https://readthedocs.org/projects/northstar/badge/?version=latest)](https://northstar.readthedocs.io/en/latest/?badge=latest)
 
 ![Logo](docs/_static/logo.png)
 # northstar

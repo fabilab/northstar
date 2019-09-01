@@ -19,7 +19,6 @@ matrix:
       language: generic
       os: osx
       script: ./.travis_test.sh
-      script: coveralls
     - stage: Deploy
       python: 3.7
       os: linux

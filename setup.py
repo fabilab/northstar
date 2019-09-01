@@ -10,11 +10,7 @@ def read(fname):
 
 
 def update_version():
-    ver = read('VERSION').rstrip('\n')
-    fdn = os.path.join(os.path.dirname(__file__), 'northstar')
-    fn = os.path.join(fdn, '_version.py')
-    with open(fn, 'wt') as f:
-        f.write('version = "{:}"'.format(ver))
+    ver = read('northstar/_version.py').rstrip('\n').split()[-1].strip('"')
     return ver
 
 

@@ -23,7 +23,9 @@ Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.o
 https://northstar.readthedocs.io
 
 ## Installation
-For now, you can use the development version.
+```bash
+pip install northstar
+```
 
 ### Dependencies
 - `numpy`

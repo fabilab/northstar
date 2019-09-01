@@ -20,7 +20,7 @@ big data (atlases) but still allows queer cells to make their own cluster if the
 Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride), so we couldn't abstain from showing our support.
 
 ## Documentation
-https://northstar.readthedocs.io/en/latest/?badge=latest
+https://northstar.readthedocs.io
 
 ## Installation
 For now, you can use the development version.

@@ -38,6 +38,7 @@ Dependencies
 - `leidenalg`: you need the develop git branch (instruction here below).
 
 To automatically download and use our curated online atlas collection at `https://iosonofabio.github.io/atlas_averages/ <https://iosonofabio.github.io/atlas_averages/>`_, you will also need:
+
 - `requests`
 - `loompy`
 

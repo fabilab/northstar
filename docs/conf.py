@@ -23,7 +23,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
-project_name = os.basename(os.path.abspath('..'))
+project_name = os.path.basename(os.path.abspath('..'))
 
 
 # -- General configuration ------------------------------------------------

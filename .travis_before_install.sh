@@ -32,28 +32,25 @@ else
   exit 1
 fi
 
-echo "Installing Python dependencies"
-## setuptools < 18.0 has issues with Cython as a dependency
-#pip install Cython
-#if [ $? != 0 ]; then
-#    exit 1
-#fi
-
-# deps #FIXME: do better
-pip install pytest
-pip install pytest-cov
-pip install coveralls
-
-pip install numpy
-pip install scipy
-pip install pandas
-pip install scikit-learn
-pip install loompy
-
-echo "Install python-igraph. It takes care of installing the igraph C library"
-pip install python-igraph
-
-echo "Install development version of leidenalg"
-git clone --single-branch --branch develop https://github.com/vtraag/leidenalg.git
-cd leidenalg
-python setup.py install
+# We do not need to actually install anything when deploying because
+# it is a pure python package
+if [ $TRAVIS_BUILD_STAGE_NAME != "Deploy" ]; then
+  echo "Installing Python dependencies"
+  pip install pytest
+  pip install pytest-cov
+  pip install coveralls
+  
+  pip install numpy
+  pip install scipy
+  pip install pandas
+  pip install scikit-learn
+  pip install loompy
+  
+  echo "Install python-igraph. It takes care of installing the igraph C library"
+  pip install python-igraph
+  
+  echo "Install development version of leidenalg"
+  git clone --single-branch --branch develop https://github.com/vtraag/leidenalg.git
+  cd leidenalg
+  python setup.py install
+fi

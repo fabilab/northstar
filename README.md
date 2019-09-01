@@ -12,18 +12,15 @@
 Cell type annotation guided by cell atlases, with freedom to be queer.
 
 ## Brief description
-`northstar` is a Python package for single cell gene expression analysis. It computes cell clusters, which often represent cell types or cell states, similar to other
-algorithms such as Louvain and Leiden community detection (graph-based) and DBSCAN and HDBSCAN (distance-based). Unlike those methods, however, northstar is
-semi-supervised by a previously annotated cell atlas. Given cluster/cell type annotations from the training atlas and a new, unannotated dataset, northstar
-performs clustering of the new dataset allowing cells to either belong to an atlas cluster or to form new clusters.
-
-## Rationale
-By combining the information provided by the atlas with the freedom to call new clusters, northstar tries to combine the best of both unsupervised and
-supervised machine learning. Since tissues can be extremely heterogeneous, the freedom to discover new queer clusters at a reasonable computational cost
-is the main strength of northstar.
+`northstar` is a Python package to identify cell types within single cell transcriptomics datasets.
+It uses one or more cell atlases as a baseline and assigns each cell of your dataset to either a known
+cell type from the atlas(es) or to a novel cluster. northstar's superpower is that it learn from
+big data (atlases) but still allows queer cells to make their own cluster if they want to.
 
 Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride), so we couldn't abstain from showing our support.
 
+## Documentation
+https://northstar.readthedocs.io/en/latest/?badge=latest
 
 ## Installation
 For now, you can use the development version.

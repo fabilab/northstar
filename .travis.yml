@@ -2,27 +2,25 @@ language: python
 
 matrix:
  include: 
-    - stage: test
+    - stage: Test
       python: 3.7
       os: linux
       dist: xenial
       script: ./.travis_test.sh
-    - stage: test
+      script: coveralls
+    - stage: Test
       python: 3.6
       os: linux
       dist: xenial
       script: ./.travis_test.sh
-    - stage: test
+      script: coveralls
+    - stage: Test
       env: CC=gcc PYTHON_VERSION='3.7'
       language: generic
       os: osx
       script: ./.travis_test.sh
-    - stage: coverage
-      python: 3.7
-      os: linux
-      dist: xenial
       script: coveralls
-    - stage: deploy
+    - stage: Deploy
       python: 3.7
       os: linux
       dist: xenial

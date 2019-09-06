@@ -24,7 +24,7 @@ Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.o
 
 Curated averages and subsamples from several atlases: https://iosonofabio.github.io/atlas_averages/
 
-If you would like us to add your cell atlas, please open an issue on that repo: https://github.com/iosonofabio/atlas_averages/issues
+If you want us to add you cell atlas, open an issue on: https://github.com/iosonofabio/atlas_averages/issues
 
 ## Documentation
 https://northstar.readthedocs.io

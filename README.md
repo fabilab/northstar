@@ -20,7 +20,9 @@ big data (atlases) but still allows queer cells to make their own cluster if the
 Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride), so we couldn't abstain from showing our support.
 
 ## Atlas resources
-Curated averages and subsamples from several atlases are available on a separate repository at https://iosonofabio.github.io/atlas_averages/
+![Atlas averages](https://iosonofabio.github.io/atlas_averages/static/logo.png)
+
+Curated averages and subsamples from several atlases: https://iosonofabio.github.io/atlas_averages/
 
 If you would like us to add your cell atlas, please open an issue on that repo: https://github.com/iosonofabio/atlas_averages/issues
 

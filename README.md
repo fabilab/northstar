@@ -20,11 +20,11 @@ big data (atlases) but still allows queer cells to make their own cluster if the
 Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride), so we couldn't abstain from showing our support.
 
 ## Atlas resources
-![Atlas averages](https://iosonofabio.github.io/atlas_averages/static/logo.png)
+![Atlas averages](https://iosonofabio.github.io/atlas_landmarks/static/logo.png)
 
-Curated averages and subsamples from several atlases: https://iosonofabio.github.io/atlas_averages/
+Curated averages and subsamples from several atlases: https://iosonofabio.github.io/atlas_landmarks/
 
-If you want us to add you cell atlas, open an issue on: https://github.com/iosonofabio/atlas_averages/issues
+If you want us to add you cell atlas, open an issue on: https://github.com/iosonofabio/atlas_landmarks/issues
 
 ## Documentation
 https://northstar.readthedocs.io
@@ -42,7 +42,7 @@ pip install northstar
 - `igraph` and `python-igraph`: this is best done by installing directly `python-igraph` via pip. That will also install the C core `iGraph` library. If you are on Windows, use the binaries as suggested on the `python-igraph` GitHub page.
 - `leidenalg`: you need the develop git branch (instruction here below).
 
-To automatically download and use our curated online atlas collection at https://iosonofabio.github.io/atlas_averages/, you will also need:
+To automatically download and use our curated online atlas collection at https://iosonofabio.github.io/atlas_landmarks/, you will also need:
 - `requests`
 - `loompy`
 

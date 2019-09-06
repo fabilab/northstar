@@ -14,12 +14,12 @@ import tempfile
 
 
 class AtlasFetcher(object):
-    '''Fetch cell atlas data from https://iosonofabio.github.io/atlas_averages/'''
+    '''Fetch cell atlas data from https://iosonofabio.github.io/atlas_landmarks/'''
     atlas_table = None
 
     def fetch_atlas_table(self):
         '''Fetch atlas table from GitHub repo'''
-        url = 'https://github.com/iosonofabio/atlas_averages/raw/master/table.tsv'
+        url = 'https://github.com/iosonofabio/atlas_landmarks/raw/master/table.tsv'
         r = requests.get(url)
         table = pd.read_csv(io.BytesIO(r.content), sep='\t', index_col=0)
 
@@ -32,7 +32,7 @@ class AtlasFetcher(object):
         return self.atlas_table.copy()
 
     def fetch_atlas(self, atlas_name, kind='average'):
-        '''Fetch an atlas from https://iosonofabio.github.io/atlas_averages/
+        '''Fetch an atlas from https://iosonofabio.github.io/atlas_landmarks/
 
         Args:
             atlas_name (str): the name of the atlas (see atlas table)

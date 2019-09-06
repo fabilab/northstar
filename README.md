@@ -96,8 +96,7 @@ membership = sa.membership
 ```
 
 ## Roadmap
-We are planning to release on Pypi and write up a paper
-to describe it.
+We are writing up a paper to describe it.
 
 ## License notes
 NOTE: The module leidenalg to perform graph-based clstering is released

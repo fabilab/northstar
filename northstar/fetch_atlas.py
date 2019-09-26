@@ -31,13 +31,16 @@ class AtlasFetcher(object):
             self.fetch_atlas_table()
         return self.atlas_table.copy()
 
-    def fetch_atlas(self, atlas_name, kind='average'):
+    def fetch_atlas(self, atlas_name, kind='average', cell_types=None):
         '''Fetch an atlas from https://iosonofabio.github.io/atlas_landmarks/
 
         Args:
             atlas_name (str): the name of the atlas (see atlas table)
             kind (str): must be 'average' for the average expression of each
              cell type, or 'subsample' for a subsample of the atlas.
+            cell_types (None or list of str): restrict to certain cell types
+             within the atlas. None (default) means all cell types will be
+             retained.
 
         Returns:
             a dictionary with two keys. 'counts' contains the gene expression
@@ -68,7 +71,7 @@ class AtlasFetcher(object):
             with loompy.connect(path) as dsl:
                 matrix = dsl.layers[''][:, :]
                 features = dsl.ra['GeneName']
-                cell_types = dsl.ca['CellType']
+                cell_types_all = dsl.ca['CellType']
                 if kind == 'average':
                     n_of_cells = dsl.ca['NumberOfCells']
                 else:
@@ -85,9 +88,15 @@ class AtlasFetcher(object):
                 columns=cell_names,
                 )
             meta = pd.Series(
-                data=cell_types,
+                data=cell_types_all,
                 index=cell_names,
                 )
+
+            if cell_types is not None:
+                ind_ct = meta.isin(cell_types)
+                meta = meta.loc[ind_ct]
+                counts = counts.loc[:, ind_ct]
+
             res = {
                 'counts': counts,
                 'cell_types': meta,
@@ -96,12 +105,18 @@ class AtlasFetcher(object):
             counts = pd.DataFrame(
                 data=matrix,
                 index=features,
-                columns=cell_types,
+                columns=cell_types_all,
                 )
             number_of_cells = pd.Series(
                 data=n_of_cells,
-                index=cell_types,
+                index=cell_types_all,
                 )
+
+            if cell_types is not None:
+                ind_ct = number_of_cells.index.isin(cell_types)
+                number_of_cells = number_of_cells[ind_ct]
+                counts = counts.loc[:, ind_ct]
+
             res = {
                 'counts': counts,
                 'number_of_cells': number_of_cells,
@@ -113,8 +128,14 @@ class AtlasFetcher(object):
         '''Fetch and combine multiple atlases
 
         Args:
-            atlas_names (list of str): the names of the atlases (see
-             atlas table)
+            atlas_names (list of str or list of dict): the names of the atlases
+             (see atlas table). If a list of dict, it can be used to fetch only
+             certain cell types from certain atlases. In that case, every
+             element of the list must be a dict with two key-value pairs:
+             'atlas_name' is the atlas name as of the atlas table, and
+             'cell_types' must be a list of cell types to retain. Example:
+             atlas_names=[{'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}]
+             would load the atlas Enge_2017 and only retain alpha cells.
             kind (str): must be 'average' for the average expression of each
              cell type, or 'subsample' for a subsample of the atlas.
 
@@ -128,7 +149,19 @@ class AtlasFetcher(object):
 
         # Fetch data for all atlases
         for atlas_name in atlas_names:
-            ds[atlas_name] = self.fetch_atlas(atlas_name, kind=kind)
+            if isinstance(atlas_name, str):
+                atlas_ctypes = None
+            elif isinstance(atlas_name, dict):
+                atlas_ctypes = atlas_name['cell_types']
+                atlas_name = atlas_name['atlas_name']
+            else:
+                raise ValueError('List of atlases not understood')
+
+            ds[atlas_name] = self.fetch_atlas(
+                    atlas_name,
+                    kind=kind,
+                    cell_types=atlas_ctypes,
+                    )
 
         # Get overlapping features, list of all cells, etc.
         # Rename cells to ensure there are no duplicates

@@ -114,7 +114,7 @@ Contents
    :maxdepth: 1
    :glob:
 
-   examples
+   tutorial
    api
 
 

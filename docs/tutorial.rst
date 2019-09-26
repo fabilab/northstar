@@ -2,7 +2,8 @@ Tutorial
 ========
 Thank you for looking into `northstar`! This tutorial guides you through a typical use of
 the package to annotate your single cell dataset based on one or more cell atlases. At
-the end of the tutorial, you should be able to navigate the other docs yourself (see api_)
+the end of the tutorial, you should be able to navigate the other docs yourself (see
+:doc:`/api`).
 
 Starting point: atlas landmarks
 --------------------------------
@@ -22,7 +23,3 @@ TODO
    :maxdepth: 2
    :glob:
 
-   examples/*
-
-
-.. _api:

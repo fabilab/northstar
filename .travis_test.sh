@@ -13,6 +13,6 @@ echo "python: ${PYTHON}"
 
 echo 'Running pytests...'
 # LOCAL TESTING:
-# PYTHONPATH=$(pwd):PYTHONPATH pytest -rxXs test
+# PYTHONPATH=$(pwd)/packages:$(pwd):PYTHONPATH pytest -rxXs test
 
 ${PYTEST} "test"

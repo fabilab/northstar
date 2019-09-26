@@ -44,8 +44,19 @@ class Subsample(object):
              is fetched (check the first column for atlas names). If a list of
              str, multiple atlases will be fetched and combined. Only features
              that are in all atlases will be kept. If you use this feature, be
-             careful to not mix atlases from different species. If a dict, it
-             describes a custom cell atlas and must have two entries.
+             careful to not mix atlases from different species. If a list of
+             dict, it merges atlases as above but you can specify what cell
+             types to fetch from each atlas. Each element of the list must be a
+             dict with two key-value pairs: 'atlas_name' is the atlas name, and
+             'cell_types' must be a list of cell types to retain. Example:
+             atlas=[{'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}] would
+             load the atlas Enge_2017 and only retain alpha cells. If a dict,
+             it can refer to two options. The first is a single atlas with a
+             specification to retain only certain cell types. The format is as
+             above, e.g. to select only alpha cells from Enge_2017 you can use:
+             atlas={'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}.
+             The second option describes a custom cell atlas. In this case, the
+             dict must have two entries, 'number_of_cells' and 'counts'.
              'cell_types' is a pandas Series with the cell names as
              index and the cell types to use for each cell as values.
              'counts' is a pandas.DataFrame or an anndata.AnnData structure.
@@ -113,8 +124,28 @@ class Subsample(object):
     def _check_init_arguments(self):
         # Custom atlas
         at = self.atlas
-        if not np.isscalar(at):
-            if not isinstance(self.atlas, dict):
+
+        if isinstance(at, str):
+            pass
+        elif isinstance(at, list) or isinstance(at, tuple):
+            for elem in at:
+                if isinstance(elem, str):
+                    pass
+                elif isinstance(elem, dict):
+                    if 'atlas_name' not in elem:
+                        raise ValueError('List of atlases: format incorrect')
+                    if 'cell_types' not in elem:
+                        raise ValueError('List of atlases: format incorrect')
+                else:
+                    raise ValueError('List of atlases: format incorrect')
+
+        elif isinstance(at, dict) and ('atlas_name' in at) and \
+                ('cell_types' in at):
+            pass
+
+        # Custom atlas
+        elif isinstance(at, dict):
+            if not isinstance(at, dict):
                 raise ValueError('atlas must be a dict')
             if 'counts' not in at:
                 raise ValueError('atlas must have a "counts" key')
@@ -165,13 +196,27 @@ class Subsample(object):
 
     def fetch_atlas_if_needed(self):
         '''Fetch atlas(es) if needed'''
+        at = self.atlas
 
-        if isinstance(self.atlas, str):
-            self.atlas = AtlasFetcher().fetch_atlas(self.atlas,
-                    kind='subsample')
-        elif isinstance(self.atlas, list) or isinstance(self.atlas, tuple):
-            self.atlas = AtlasFetcher().fetch_multiple_atlases(self.atlas,
-                    kind='subsample')
+        if isinstance(at, str):
+            self.atlas = AtlasFetcher().fetch_atlas(
+                    at,
+                    kind='subsample',
+                    )
+
+        elif isinstance(at, list) or isinstance(self.atlas, tuple):
+            self.atlas = AtlasFetcher().fetch_multiple_atlases(
+                    at,
+                    kind='subsample',
+                    )
+
+        elif isinstance(at, dict) and ('atlas_name' in at) and \
+                ('cell_types' in at):
+            self.atlas = AtlasFetcher().fetch_atlas(
+                    at['atlas_name'],
+                    kind='subsample',
+                    cell_types=at['cell_types'],
+                    )
 
     def merge_atlas_newdata(self):
         '''Merge the averaged atlas data and the new data

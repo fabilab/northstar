@@ -14,8 +14,8 @@ def test_run_within_atlas():
     matrix = atlas['counts']
     cell_types = atlas['cell_types'].values
 
-    sa = Subsample(aname, matrix)
-    sa()
+    sa = Subsample(aname)
+    sa.fit(matrix)
 
     # Nobody's perfect
     assert((cell_types == sa.membership).mean() >= 0.9)
@@ -30,8 +30,8 @@ def test_run_within_atlas_means():
     matrix = atlas['counts'].iloc[:, ind]
     cell_types = atlas['counts'].columns.values[ind]
 
-    sa = Subsample(aname, matrix)
-    sa()
+    sa = Subsample(aname)
+    sa.fit(matrix)
 
     # Nobody's perfect
     assert((cell_types == sa.membership).mean() >= 0.9)
@@ -45,12 +45,11 @@ def test_run_across_atlas():
 
     sa = Subsample(
         'Baron_2016',
-        matrix,
         n_pcs=25,
         n_features_per_cell_type=3,
         n_features_overdispersed=200,
         )
-    sa()
+    sa.fit(matrix)
 
     # Nobody's perfect
     # Baron annotates Stellate cells more accurately, so we skip them
@@ -60,4 +59,3 @@ def test_run_across_atlas():
 if __name__ == '__main__':
 
     test_run_across_atlas()
-

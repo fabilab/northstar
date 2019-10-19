@@ -8,18 +8,8 @@ from northstar import Averages, AtlasFetcher
 
 
 def test_constructor():
-    matrix = pd.DataFrame(
-        index=['INS', 'GCG', 'PPY'],
-        columns=['cell1', 'cell2', 'cell3'],
-        data=[
-            [2302, 123, 0],
-            [0, 5034, 6453],
-            [0, 0, 1]],
-        )
-
     sa = Averages(
             'Enge_2017',
-            matrix,
             n_neighbors=2,
             threshold_neighborhood=0.8,
             n_pcs=2,
@@ -42,7 +32,6 @@ def test_arguments():
 
     sa = Averages(
             'Enge_2017',
-            matrix,
             n_neighbors=2,
             threshold_neighborhood=0.8,
             n_pcs=2,
@@ -50,6 +39,7 @@ def test_arguments():
             n_neighbors_out_of_atlas=1
             )
 
+    sa.new_data = matrix
     sa._check_init_arguments()
     assert(sa is not None)
 
@@ -69,7 +59,6 @@ def test_merge_small():
 
     sa = Averages(
             'Enge_2017',
-            matrix,
             n_neighbors=k,
             threshold_neighborhood=threshold,
             n_pcs=n_pcs,
@@ -77,6 +66,7 @@ def test_merge_small():
             n_neighbors_out_of_atlas=1
             )
 
+    sa.new_data = matrix
     sa._check_init_arguments()
     sa.fetch_atlas_if_needed()
     sa.merge_atlas_newdata()
@@ -99,7 +89,6 @@ def test_neighbors_small():
 
     sa = Averages(
             'Enge_2017',
-            matrix,
             n_neighbors=k,
             threshold_neighborhood=threshold,
             n_pcs=n_pcs,
@@ -108,6 +97,7 @@ def test_neighbors_small():
             n_neighbors_out_of_atlas=1
             )
 
+    sa.new_data = matrix
     sa._check_init_arguments()
     sa.fetch_atlas_if_needed()
     sa.merge_atlas_newdata()
@@ -131,10 +121,9 @@ def test_run_mock_cells():
 
     sa = Averages(
             aname,
-            matrix,
             n_pcs=10,
             )
-    sa()
+    sa.fit(matrix)
 
     assert((cell_types == sa.membership).mean() > 0.9)
 
@@ -152,12 +141,11 @@ def test_run_within_atlas():
 
     sa = Averages(
             aname,
-            matrix,
             n_features_per_cell_type=2,
             n_features_overdispersed=5,
             n_pcs=9,
             )
-    sa()
+    sa.fit(matrix)
 
     for i in range(len(cell_types)):
         print('{:10s}    {:10s}'.format(cell_types[i], sa.membership[i]))

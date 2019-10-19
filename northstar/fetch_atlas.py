@@ -124,7 +124,12 @@ class AtlasFetcher(object):
 
         return res
 
-    def fetch_multiple_atlases(self, atlas_names, kind='average'):
+    def fetch_multiple_atlases(
+            self,
+            atlas_names,
+            kind='average',
+            join='keep_first',
+            ):
         '''Fetch and combine multiple atlases
 
         Args:
@@ -138,6 +143,12 @@ class AtlasFetcher(object):
              would load the atlas Enge_2017 and only retain alpha cells.
             kind (str): must be 'average' for the average expression of each
              cell type, or 'subsample' for a subsample of the atlas.
+            join (str): must be 'keep_first', 'union', or 'intersection'. This
+             argument decides what to do with features that are not present
+             in all atlases. 'keep_first' keeps the features in the first
+             atlas and pads the other atlases with zeros, 'union' pads every
+             atlas that is missing a feature and 'intersection' only keep
+             features that are in all atlases.
 
         '''
         if kind not in ('average', 'subsample'):
@@ -148,6 +159,7 @@ class AtlasFetcher(object):
             return ds
 
         # Fetch data for all atlases
+        first_atlas = None
         for atlas_name in atlas_names:
             if isinstance(atlas_name, str):
                 atlas_ctypes = None
@@ -157,29 +169,38 @@ class AtlasFetcher(object):
             else:
                 raise ValueError('List of atlases not understood')
 
+            if first_atlas is None:
+                first_atlas = atlas_name
             ds[atlas_name] = self.fetch_atlas(
                     atlas_name,
                     kind=kind,
                     cell_types=atlas_ctypes,
                     )
 
-        # Get overlapping features, list of all cells, etc.
+        # Get features, list of all cells, etc.
         # Rename cells to ensure there are no duplicates
         cell_names = []
         cell_names_new = []
-        features = None
+        features_list = []
         for at, d in ds.items():
             cell_names.extend(d['counts'].columns.tolist())
             cell_names_new.extend(
                     ['{:}_{:}'.format(at, x) for x in d['counts'].columns])
-            if features is None:
-                features = d['counts'].index.values
-            else:
-                features = np.intersect1d(
-                    features, d['counts'].index.values,
-                    )
+            features_list.append(d['counts'].index.values)
         cell_names = np.array(cell_names)
         cell_names_new = np.array(cell_names_new)
+
+        # Deal with non-intersecting features
+        if len(features_list) == 1:
+            features = features_list[0]
+        elif join == 'intersection':
+            features_list = [set(x) for x in features_list]
+            features = np.sort(set.intersection(features_list))
+        elif join == 'union':
+            features_list = [set(x) for x in features_list]
+            features = np.sort(set.union(features_list))
+        elif join == 'keep_first':
+            features = np.sort(features_list[0])
 
         # Fill the combined dataset, including metadata
         matrix = np.empty((len(features), len(cell_names)), np.float32)
@@ -189,8 +210,17 @@ class AtlasFetcher(object):
             cell_types = []
         cell_dataset = []
         i = 0
+        features_set = set(features)
         for at, d in ds.items():
             n = d['counts'].shape[1]
+
+            # Pad missing features
+            if join != 'intersection':
+                fea_this = set(d['counts'].index)
+                fea_missing = features_set - fea_this
+                for f in fea_missing:
+                    d['counts'].loc[f] = 0.0
+
             matrix[:, i: i+n] = d['counts'].loc[features].values
             if kind == 'average':
                 n_cells_per_type[i: i+n] = d['number_of_cells'].values

@@ -21,7 +21,6 @@ class Subsample(object):
     def __init__(
             self,
             atlas,
-            new_data,
             features=None,
             n_features_per_cell_type=30,
             n_features_overdispersed=500,
@@ -66,12 +65,6 @@ class Subsample(object):
              (obs_names) and the features as columns (var_names). If an AnnData,
              it will be converted into a DataFrame.
 
-            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
-             clustered. If a dataframe, t must have features as rows and
-             cell names as columns (as in loom files). anndata uses the opposite
-             convention, so it must have cell names as rows (obs_names) and
-             features as columns (var_names) and this class will transpose it.
-
             features (list of str or None): list of features to select after
              normalization. If None, features will be selected automatically
              based on the two next arguments, 'n_features_per_cell_type' and
@@ -109,7 +102,6 @@ class Subsample(object):
         '''
 
         self.atlas = atlas
-        self.new_data = new_data
         self.features = features
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
@@ -380,6 +372,11 @@ class Subsample(object):
 
             nbi.extend(list(ind))
 
+        self.pca_data = {
+            'pcs': rvects,
+            'cell_type': np.array(list(self.cell_types) + [''] * (N - n_fixed)),
+            'n_atlas': n_fixed,
+            }
         self.neighbors = neighbors
 
     def compute_communities(self):
@@ -492,8 +489,15 @@ class Subsample(object):
 
         return closest
 
-    def __call__(self):
+    def fit(self, new_data):
         '''Run with subsamples of the atlas
+
+        Args:
+            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
+             clustered. If a dataframe, t must have features as rows and
+             cell names as columns (as in loom files). anndata uses the opposite
+             convention, so it must have cell names as rows (obs_names) and
+             features as columns (var_names) and this class will transpose it.
 
         Returns:
             None, but this instance of Subsample acquired the property
@@ -501,6 +505,8 @@ class Subsample(object):
             columns except the first n_fixed. The first n_fixed columns are
             assumes to have distinct memberships in the range [0, n_fixed - 1].
         '''
+        self.new_data = new_data
+
         self._check_init_arguments()
 
         self.fetch_atlas_if_needed()
@@ -512,3 +518,21 @@ class Subsample(object):
         self.compute_neighbors()
 
         self.compute_communities()
+
+    def fit_transform(self, new_data):
+        '''Run with subsamples of the atlas and return the cell types
+
+        Args:
+            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
+             clustered. If a dataframe, t must have features as rows and
+             cell names as columns (as in loom files). anndata uses the opposite
+             convention, so it must have cell names as rows (obs_names) and
+             features as columns (var_names) and this class will transpose it.
+
+        Returns:
+            the cluster memberships (cell types) of the
+            columns except the first n_fixed. The first n_fixed columns are
+            assumes to have distinct memberships in the range [0, n_fixed - 1].
+        '''
+        self.fit(new_data)
+        return self.membership

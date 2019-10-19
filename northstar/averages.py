@@ -33,6 +33,7 @@ class Averages(object):
             clustering_metric='cpm',
             resolution_parameter=0.001,
             normalize_counts=True,
+            join='keep_first',
             ):
         '''Prepare the model for cell annotation
 
@@ -108,6 +109,14 @@ class Averages(object):
             normalize_counts (bool): whether to renormalize the counts at the
              merging stage to make sure atlas and new data follow the same
              normalization. Be careful if you turn this off.
+
+            join (str): must be 'keep_first', 'union', or 'intersection'. This
+             argument is used when sourcing multiple atlases and decides what
+             to do with features that are not present in all atlases.
+             'keep_first' keeps the features in the first atlas and pads the
+             other atlases with zeros, 'union' pads every atlas that is missing
+             a feature and 'intersection' only keep features that are in all
+             atlases.
         '''
 
         self.atlas = atlas
@@ -123,6 +132,7 @@ class Averages(object):
         self.clustering_metric = clustering_metric
         self.resolution_parameter = resolution_parameter
         self.normalize_counts = normalize_counts
+        self.join = join
 
     def _check_init_arguments(self):
         # Custom atlas
@@ -212,6 +222,7 @@ class Averages(object):
             self.atlas = AtlasFetcher().fetch_multiple_atlases(
                     at,
                     kind='average',
+                    join=self.join,
                     )
 
         elif isinstance(at, dict) and ('atlas_name' in at) and \

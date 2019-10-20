@@ -22,12 +22,12 @@ setup(
     description="Cell type annotation guided by cell atlases, with freedom to be queer.",
     license="MIT",
     keywords="graph semi-supervised",
-    url="https://github.com/iosonofabio/northstar",
+    url="https://github.com/northstaratlas/northstar",
     packages=['northstar'] + ['northstar.' + s for s in find_packages(where='northstar')],
     long_description='''
     Cell type annotation guided by cell atlases, with freedom to be queer.
 
-    See https://github.com/iosonofabio/northstar for the project's website.
+    See https://github.com/northstaratlas/northstar for the project's website.
     ''',
     classifiers=[
         "Development Status :: 4 - Beta",

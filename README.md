@@ -22,9 +22,9 @@ Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.o
 ## Atlas resources
 ![Atlas averages](https://iosonofabio.github.io/atlas_landmarks/static/logo.png)
 
-Curated averages and subsamples from several atlases: https://iosonofabio.github.io/atlas_landmarks/
+Curated averages and subsamples from several atlases: https://northstaratlas.github.io/atlas_landmarks/
 
-If you want us to add you cell atlas, open an issue on: https://github.com/iosonofabio/atlas_landmarks/issues
+If you want us to add you cell atlas, open an issue on: https://github.com/northstaratlas/atlas_landmarks/issues
 
 ## Documentation
 https://northstar.readthedocs.io
@@ -42,7 +42,7 @@ pip install northstar
 - `igraph` and `python-igraph`: this is best done by installing directly `python-igraph` via pip. That will also install the C core `iGraph` library. If you are on Windows, use the binaries as suggested on the `python-igraph` GitHub page.
 - `leidenalg`: you need the develop git branch (instruction here below).
 
-To automatically download and use our curated online atlas collection at https://iosonofabio.github.io/atlas_landmarks/, you will also need:
+To automatically download and use our curated online atlas collection at https://northstaratlas.github.io/atlas_landmarks/, you will also need:
 - `requests`
 - `loompy`
 
@@ -55,7 +55,7 @@ python setup.py install
 
 Once all dependencies are installed, clone this repo:
 ```bash
-git clone https://github.com/iosonofabio/northstar.git
+git clone https://github.com/northstaratlas/northstar.git
 ```
 Then `cd` into it and run the setup the usual Python way:
 ```bash
@@ -81,18 +81,17 @@ new_dataset = pd.DataFrame(
     )
 
 # Initialize northstar classes
-sa = northstar.Averages(
+model = northstar.Averages(
         atlas='Darmanis_2015',
-        new_dataset,
         n_neighbors=5,
         n_pcs=10,
         )
 
 # Run the classifier
-sa()
+model.fit(new_dataset)
 
 # Get the cluster memberships for the new cells
-membership = sa.membership
+membership = model.membership
 ```
 
 ## Roadmap

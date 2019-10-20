@@ -215,7 +215,7 @@ class AtlasFetcher(object):
             n = d['counts'].shape[1]
 
             # Pad missing features
-            if join != 'intersection':
+            if (join == 'union') or ((join == 'keep_first') and (at != first_atlas)):
                 fea_this = set(d['counts'].index)
                 fea_missing = features_set - fea_this
                 for f in fea_missing:

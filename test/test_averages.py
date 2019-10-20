@@ -101,7 +101,8 @@ def test_neighbors_small():
     sa._check_init_arguments()
     sa.fetch_atlas_if_needed()
     sa.merge_atlas_newdata()
-    sa.compute_neighbors()
+    sa.compute_pca()
+    sa.compute_similarity_graph()
     neis = sa.neighbors
 
     assert(isinstance(neis, list))

@@ -25,6 +25,7 @@ class Averages(object):
             features=None,
             n_features_per_cell_type=30,
             n_features_overdispersed=500,
+            features_additional=None,
             n_pcs=20,
             n_neighbors=10,
             n_neighbors_out_of_atlas=5,
@@ -80,10 +81,16 @@ class Averages(object):
              input a pre-feature selected matrix.
 
             n_features_per_cell_type (int): number of features marking each
-             fixed column (atlas cell type).
+             fixed column (atlas cell type). The argument 'features' takes
+             priority over this one.
 
             n_features_overdispersed (int): number of unbiased, overdispersed
-             features to be picked from the new dataset.
+             features to be picked from the new dataset. The argument
+             'features' takes priority over this one.
+
+            features_additional (list of str or None): additional features to
+             keep on top of automatic selection. The argument 'features' takes
+             priority over this one.
 
             n_pcs (int): number of principal components to keep in the weighted
              PCA.
@@ -124,6 +131,7 @@ class Averages(object):
         self.features = features
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
+        self.features_additional = features_additional
         self.n_pcs = n_pcs
         self.n_neighbors = n_neighbors
         self.n_neighbors_out_of_atlas = n_neighbors_out_of_atlas
@@ -133,6 +141,50 @@ class Averages(object):
         self.resolution_parameter = resolution_parameter
         self.normalize_counts = normalize_counts
         self.join = join
+
+    def fit(self, new_data):
+        '''Run with averages of the atlas
+
+        Args:
+            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
+             clustered. If a dataframe, t must have features as rows and
+             cell names as columns (as in loom files). anndata uses the opposite
+             convention, so it must have cell names as rows (obs_names) and
+             features as columns (var_names) and this class will transpose it.
+
+        Returns:
+            None, but this instance of Averages acquired the property
+            `membership` containing the cluster memberships (cell types) of the
+            columns except the first n_fixed. The first n_fixed columns are
+            assumes to have distinct memberships in the range [0, n_fixed - 1].
+        '''
+        self.new_data = new_data
+
+        self._check_init_arguments()
+        self.fetch_atlas_if_needed()
+        self.merge_atlas_newdata()
+        self.select_features()
+        self.compute_pca()
+        self.compute_similarity_graph()
+        self.cluster_graph()
+
+    def fit_transform(self, new_data):
+        '''Run with averages of the atlas and return the cell types
+
+        Args:
+            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
+             clustered. If a dataframe, t must have features as rows and
+             cell names as columns (as in loom files). anndata uses the opposite
+             convention, so it must have cell names as rows (obs_names) and
+             features as columns (var_names) and this class will transpose it.
+
+        Returns:
+            the cluster memberships (cell types) of the
+            columns except the first n_fixed. The first n_fixed columns are
+            assumes to have distinct memberships in the range [0, n_fixed - 1].
+        '''
+        self.fit(new_data)
+        return self.membership
 
     def _check_init_arguments(self):
         # Custom atlas
@@ -269,6 +321,7 @@ class Averages(object):
         if self.normalize_counts:
             matrix *= 1e6 / matrix.sum(axis=0)
         self.matrix_all = matrix
+        self.matrix = self.matrix_all
 
         # Cell numbers
         self.sizes = np.ones(N, np.float32)
@@ -286,6 +339,7 @@ class Averages(object):
         # Shorten arg names
         features = self.features
         features_all = list(self.features_all)
+        features_add = self.features_additional
         matrix_all = self.matrix_all
 
         if features is not None:
@@ -319,12 +373,17 @@ class Averages(object):
             overdispersed = np.argpartition(fano, -nf2)[-nf2:]
             ind_features |= set(overdispersed)
 
+        # Additional features
+        if features_add is not None:
+            tmp = pd.Series(np.arange(len(features_all)), index=features_all)
+            ind_features |= set(tmp.loc[features_add].values)
+
         ind_features = list(ind_features)
 
         self.features_selected = self.features_all[ind_features]
         self.matrix = matrix_all[ind_features]
 
-    def compute_neighbors(self):
+    def compute_pca(self):
         '''Compute k nearest neighbors from a matrix with fixed nodes
 
         Returns:
@@ -340,20 +399,11 @@ class Averages(object):
         standard dev along the same axis
         2. calculate the weighted covariance matrix
         3. calculate normal PCA on that matrix
-        4. calculate the distance matrix by expanding atlas columns
-        5. calculate the k neighbors from the distance matrix, checking for
-        threshold
         '''
-        from scipy.spatial.distance import cdist
-
         matrix = self.matrix
         sizes = self.sizes
         n_fixed = self.n_fixed
-        k = self.n_neighbors
-        kout = self.n_neighbors_out_of_atlas
         n_pcs = self.n_pcs
-        metric = self.distance_metric
-        threshold = self.threshold_neighborhood
 
         # Test input arguments
         L, N = matrix.shape
@@ -417,6 +467,33 @@ class Averages(object):
                 i += 1
         cell_type_expanded = np.array(cell_type_expanded)
 
+        self.pca_data = {
+            'pcs': rvects,
+            'pcs_expanded': rvectse,
+            'cell_type': cell_type_expanded,
+            'n_atlas': n_fixed_expanded,
+            }
+
+    def compute_similarity_graph(self):
+        '''Compute similarity graph from the extended PC space
+
+        1. calculate the distance matrix by expanding atlas columns
+        2. calculate neighborhoods
+        3. construct similarity graph from neighborhood lists
+        '''
+        from scipy.spatial.distance import cdist
+        import igraph as ig
+
+        sizes = self.sizes
+        n_fixed = self.n_fixed
+        k = self.n_neighbors
+        kout = self.n_neighbors_out_of_atlas
+        metric = self.distance_metric
+        threshold = self.threshold_neighborhood
+        rvects = self.pca_data['pcs']
+        rvectse = self.pca_data['pcs_expanded']
+        Ne = len(rvectse)
+
         # 5. calculate distance matrix and neighbors
         # we do it row by row, it costs a bit in terms of runtime but
         # has huge savings in terms of memory since we don't need the square
@@ -468,14 +545,18 @@ class Averages(object):
 
             neighbors.append(list(ind))
 
-        self.pca_data = {
-            'pcs': rvectse,
-            'cell_type': cell_type_expanded,
-            'n_atlas': n_fixed_expanded,
-            }
         self.neighbors = neighbors
 
-    def compute_communities(self):
+        # Construct graph from the lists of neighbors
+        edges_d = set()
+        for i, neis in enumerate(neighbors):
+            for n in neis:
+                edges_d.add(frozenset((i, n)))
+
+        edges = [tuple(e) for e in edges_d]
+        self.graph = ig.Graph(n=Ne, edges=edges, directed=False)
+
+    def cluster_graph(self):
         '''Compute communities from a matrix with fixed nodes
 
         Returns:
@@ -484,7 +565,6 @@ class Averages(object):
             new dataset.
         '''
         import inspect
-        import igraph as ig
         import leidenalg
 
         # Check whether this version of Leiden has fixed nodes support
@@ -498,20 +578,11 @@ class Averages(object):
         n_fixed = self.n_fixed
         clustering_metric = self.clustering_metric
         resolution_parameter = self.resolution_parameter
-        neighbors = self.neighbors
+        g = self.graph
 
         L, N = matrix.shape
         n_fixede = int(np.sum(sizes[:n_fixed]))
         Ne = int(np.sum(sizes))
-
-        # Construct graph from the lists of neighbors
-        edges_d = set()
-        for i, neis in enumerate(neighbors):
-            for n in neis:
-                edges_d.add(frozenset((i, n)))
-
-        edges = [tuple(e) for e in edges_d]
-        g = ig.Graph(n=N, edges=edges, directed=False)
 
         # NOTE: initial membership is singletons except for atlas nodes, which
         # get the membership they have.
@@ -593,51 +664,3 @@ class Averages(object):
         closest = pd.Series(cell_types[closest], index=cell_types_new)
 
         return closest
-
-    def fit(self, new_data):
-        '''Run with averages of the atlas
-
-        Args:
-            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
-             clustered. If a dataframe, t must have features as rows and
-             cell names as columns (as in loom files). anndata uses the opposite
-             convention, so it must have cell names as rows (obs_names) and
-             features as columns (var_names) and this class will transpose it.
-
-        Returns:
-            None, but this instance of Averages acquired the property
-            `membership` containing the cluster memberships (cell types) of the
-            columns except the first n_fixed. The first n_fixed columns are
-            assumes to have distinct memberships in the range [0, n_fixed - 1].
-        '''
-        self.new_data = new_data
-
-        self._check_init_arguments()
-
-        self.fetch_atlas_if_needed()
-
-        self.merge_atlas_newdata()
-
-        self.select_features()
-
-        self.compute_neighbors()
-
-        self.compute_communities()
-
-    def fit_transform(self, new_data):
-        '''Run with averages of the atlas and return the cell types
-
-        Args:
-            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
-             clustered. If a dataframe, t must have features as rows and
-             cell names as columns (as in loom files). anndata uses the opposite
-             convention, so it must have cell names as rows (obs_names) and
-             features as columns (var_names) and this class will transpose it.
-
-        Returns:
-            the cluster memberships (cell types) of the
-            columns except the first n_fixed. The first n_fixed columns are
-            assumes to have distinct memberships in the range [0, n_fixed - 1].
-        '''
-        self.fit(new_data)
-        return self.membership

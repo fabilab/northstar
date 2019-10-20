@@ -24,6 +24,7 @@ class Subsample(object):
             features=None,
             n_features_per_cell_type=30,
             n_features_overdispersed=500,
+            features_additional=None,
             n_pcs=20,
             n_neighbors=10,
             distance_metric='correlation',
@@ -80,6 +81,10 @@ class Subsample(object):
             n_features_overdispersed (int): number of unbiased, overdispersed
              features from the last N - n_fixed columns.
 
+            features_additional (list of str or None): additional features to
+             keep on top of automatic selection. The argument 'features' takes
+             priority over this one.
+
             n_pcs (int): number of principal components to keep in the PCA
 
             n_neighbors (int): number of neighbors in the similarity graph
@@ -114,6 +119,7 @@ class Subsample(object):
         self.features = features
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
+        self.features_additional = features_additional
         self.n_pcs = n_pcs
         self.n_neighbors = n_neighbors
         self.distance_metric = distance_metric
@@ -122,6 +128,50 @@ class Subsample(object):
         self.resolution_parameter = resolution_parameter
         self.normalize_counts = normalize_counts
         self.join = join
+
+    def fit(self, new_data):
+        '''Run with subsamples of the atlas
+
+        Args:
+            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
+             clustered. If a dataframe, t must have features as rows and
+             cell names as columns (as in loom files). anndata uses the opposite
+             convention, so it must have cell names as rows (obs_names) and
+             features as columns (var_names) and this class will transpose it.
+
+        Returns:
+            None, but this instance of Subsample acquired the property
+            `membership` containing the cluster memberships (cell types) of the
+            columns except the first n_fixed. The first n_fixed columns are
+            assumes to have distinct memberships in the range [0, n_fixed - 1].
+        '''
+        self.new_data = new_data
+
+        self._check_init_arguments()
+        self.fetch_atlas_if_needed()
+        self.merge_atlas_newdata()
+        self.select_features()
+        self.compute_pca()
+        self.compute_similarity_graph()
+        self.cluster_graph()
+
+    def fit_transform(self, new_data):
+        '''Run with subsamples of the atlas and return the cell types
+
+        Args:
+            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
+             clustered. If a dataframe, t must have features as rows and
+             cell names as columns (as in loom files). anndata uses the opposite
+             convention, so it must have cell names as rows (obs_names) and
+             features as columns (var_names) and this class will transpose it.
+
+        Returns:
+            the cluster memberships (cell types) of the
+            columns except the first n_fixed. The first n_fixed columns are
+            assumes to have distinct memberships in the range [0, n_fixed - 1].
+        '''
+        self.fit(new_data)
+        return self.membership
 
     def _check_init_arguments(self):
         # Custom atlas
@@ -255,6 +305,7 @@ class Subsample(object):
         matrix[:, n_fixed:] = self.new_data.loc[features].values
         if self.normalize_counts:
             matrix *= 1e6 / matrix.sum(axis=0)
+        self.matrix_all = matrix
         self.matrix = matrix
 
     def select_features(self):
@@ -264,16 +315,17 @@ class Subsample(object):
             ndarray of feature names.
         '''
         # Shorten arg names
-        matrix = self.matrix
         features = self.features
         features_all = list(self.features_all)
+        features_add = self.features_additional
+        matrix_all = self.matrix_all
 
         if features is not None:
             ind_features = []
             for fea in features:
                 ind_features.append(features_all.index(fea))
             self.features_selected = features
-            self.matrix = self.matrix[ind_features]
+            self.matrix = matrix_all[ind_features]
             return
 
         aa = self.cell_types
@@ -289,25 +341,30 @@ class Subsample(object):
             for au in aau:
                 icol1 = (aa == au).nonzero()[0]
                 icol2 = (aa != au).nonzero()[0]
-                ge1 = matrix[:, icol1].mean(axis=1)
-                ge2 = matrix[:, icol2].mean(axis=1)
+                ge1 = matrix_all[:, icol1].mean(axis=1)
+                ge2 = matrix_all[:, icol2].mean(axis=1)
                 fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
                 markers = np.argpartition(fold_change, -nf1)[-nf1:]
                 ind_features |= set(markers)
 
         # Unbiased on new data
-        nd_mean = matrix[:, n_fixed:].mean(axis=1)
-        nd_var = matrix[:, n_fixed:].var(axis=1)
+        nd_mean = matrix_all[:, n_fixed:].mean(axis=1)
+        nd_var = matrix_all[:, n_fixed:].var(axis=1)
         fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
         overdispersed = np.argpartition(fano, -nf2)[-nf2:]
         ind_features |= set(overdispersed)
 
+        # Additional features
+        if features_add is not None:
+            tmp = pd.Series(np.arange(len(features_all)), index=features_all)
+            ind_features |= set(tmp.loc[features_add].values)
+
         ind_features = list(ind_features)
 
         self.features_selected = self.features_all[ind_features]
-        self.matrix = self.matrix[ind_features]
+        self.matrix = matrix_all[ind_features]
 
-    def compute_neighbors(self):
+    def compute_pca(self):
         '''Compute k nearest neighbors from a matrix with fixed nodes
 
         Returns:
@@ -322,19 +379,12 @@ class Subsample(object):
         the observation axis (N) and divide by the standard dev along the same axis
         2. calculate the weighted covariance matrix
         3. calculate normal PCA on that matrix
-        4. calculate the distance matrix of the N1 free columns to all N columns
-        5. for each free columnsm, calculate the k neighbors from the distance
-        matrix, checking for threshold
         '''
         from sklearn.decomposition import PCA
-        from scipy.spatial.distance import pdist, squareform
 
         matrix = self.matrix
         n_fixed = self.n_fixed
-        k = self.n_neighbors
         n_pcs = self.n_pcs
-        metric = self.distance_metric
-        threshold = self.threshold_neighborhood
 
         # Test input arguments
         L, N = matrix.shape
@@ -357,14 +407,37 @@ class Subsample(object):
         # rvects columns are the right singular vectors
         rvects = pca.fit_transform(Xnorm.T)
 
-        # 4. calculate distance matrix
+        self.pca_data = {
+            'pcs': rvects,
+            'cell_type': np.array(list(self.cell_types) + [''] * (N - n_fixed)),
+            'n_atlas': n_fixed,
+            }
+
+    def compute_similarity_graph(self):
+        '''Compute similarity graph from the extended PC space
+
+        1. calculate the distance matrix
+        2. calculate neighborhoods
+        3. construct similarity graph from neighborhood lists
+        '''
+        from scipy.spatial.distance import pdist, squareform
+        import igraph as ig
+
+        matrix = self.matrix
+        k = self.n_neighbors
+        metric = self.distance_metric
+        threshold = self.threshold_neighborhood
+        rvects = self.pca_data['pcs']
+        L, N = matrix.shape
+
+        # 1. calculate distance matrix
         # rvects is N x n_pcs. Let us calculate the end that includes only the free
         # observations and then call cdist which kills the columns. The resulting
         # matrix has dimensions N1 x N
         dmat = squareform(pdist(rvects, metric=metric))
         dmax = dmat.max()
 
-        # 5. calculate neighbors
+        # 2. calculate neighbors
         neighbors = [[] for n1 in range(N)]
         for i, drow in enumerate(dmat):
             nbi = neighbors[i]
@@ -383,14 +456,18 @@ class Subsample(object):
 
             nbi.extend(list(ind))
 
-        self.pca_data = {
-            'pcs': rvects,
-            'cell_type': np.array(list(self.cell_types) + [''] * (N - n_fixed)),
-            'n_atlas': n_fixed,
-            }
         self.neighbors = neighbors
 
-    def compute_communities(self):
+        # Construct graph from the lists of neighbors
+        edges_d = set()
+        for i, neis in enumerate(neighbors):
+            for n in neis:
+                edges_d.add(frozenset((i, n)))
+
+        edges = [tuple(e) for e in edges_d]
+        self.graph = ig.Graph(n=N, edges=edges, directed=False)
+
+    def cluster_graph(self):
         '''Compute communities from a matrix with fixed nodes
 
         Returns:
@@ -399,7 +476,6 @@ class Subsample(object):
             columns except the first n_fixed ones.
         '''
         import inspect
-        import igraph as ig
         import leidenalg
 
         # Check whether this version of Leiden has fixed nodes support
@@ -414,18 +490,9 @@ class Subsample(object):
         n_fixed = self.n_fixed
         clustering_metric = self.clustering_metric
         resolution_parameter = self.resolution_parameter
-        neighbors = self.neighbors
+        g = self.graph
 
         L, N = matrix.shape
-
-        # Construct graph from the lists of neighbors
-        edges_d = set()
-        for i, neis in enumerate(neighbors):
-            for n in neis:
-                edges_d.add(frozenset((i, n)))
-
-        edges = [tuple(e) for e in edges_d]
-        g = ig.Graph(n=N, edges=edges, directed=False)
 
         # NOTE: initial membership is singletons except for atlas nodes, which
         # get the membership they have.
@@ -499,51 +566,3 @@ class Subsample(object):
         closest = pd.Series(cell_types[closest], index=ct_new)
 
         return closest
-
-    def fit(self, new_data):
-        '''Run with subsamples of the atlas
-
-        Args:
-            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
-             clustered. If a dataframe, t must have features as rows and
-             cell names as columns (as in loom files). anndata uses the opposite
-             convention, so it must have cell names as rows (obs_names) and
-             features as columns (var_names) and this class will transpose it.
-
-        Returns:
-            None, but this instance of Subsample acquired the property
-            `membership` containing the cluster memberships (cell types) of the
-            columns except the first n_fixed. The first n_fixed columns are
-            assumes to have distinct memberships in the range [0, n_fixed - 1].
-        '''
-        self.new_data = new_data
-
-        self._check_init_arguments()
-
-        self.fetch_atlas_if_needed()
-
-        self.merge_atlas_newdata()
-
-        self.select_features()
-
-        self.compute_neighbors()
-
-        self.compute_communities()
-
-    def fit_transform(self, new_data):
-        '''Run with subsamples of the atlas and return the cell types
-
-        Args:
-            new_data (pandas.DataFrame or anndata.AnnData): the new data to be
-             clustered. If a dataframe, t must have features as rows and
-             cell names as columns (as in loom files). anndata uses the opposite
-             convention, so it must have cell names as rows (obs_names) and
-             features as columns (var_names) and this class will transpose it.
-
-        Returns:
-            the cluster memberships (cell types) of the
-            columns except the first n_fixed. The first n_fixed columns are
-            assumes to have distinct memberships in the range [0, n_fixed - 1].
-        '''
-        self.fit(new_data)
-        return self.membership

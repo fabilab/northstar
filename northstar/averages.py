@@ -4,9 +4,10 @@
 # content:    Atlas averages
 __all__ = ['Averages']
 
-
+import warnings
 import numpy as np
 import pandas as pd
+import leidenalg
 from .fetch_atlas import AtlasFetcher
 
 try:
@@ -250,6 +251,17 @@ class Averages(object):
 
             # AnnData uses features as columns, to transpose and convert
             self.new_data = nd = nd.T.to_df()
+
+        # New data could be too small to to PCA
+        n_newgenes, n_newcells = self.new_data.shape
+        if n_newgenes < self.n_pcs:
+            warnings.warn('The number of features in the new data is on the small end, northstar might give inaccurate results')
+
+        if n_newcells < self.n_pcs:
+            warnings.warn('The number of cells in the new data is on the small end, northstar might give inaccurate results')
+
+        if min(n_newgenes, n_newcells) < self.n_pcs:
+            self.n_pcs = min(n_newgenes, n_newcells)
 
         nf1 = self.n_features_per_cell_type
         if not isinstance(nf1, int):
@@ -564,14 +576,7 @@ class Averages(object):
             size N - n_fixed with the atlas cell types of all cells from the
             new dataset.
         '''
-        import inspect
-        import leidenalg
-
-        # Check whether this version of Leiden has fixed nodes support
         opt = leidenalg.Optimiser()
-        sig = inspect.getfullargspec(opt.optimise_partition)
-        if 'fixed_nodes' not in sig.args:
-            raise ImportError('This version of the leidenalg module does not support fixed nodes. Please update to a later (development) version')
 
         matrix = self.matrix
         sizes = self.sizes

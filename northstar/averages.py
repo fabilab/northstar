@@ -384,11 +384,14 @@ class Averages(object):
 
         # Unbiased on new data
         if nf2 > 0:
-            nd_mean = matrix_all[:, n_fixed:].mean(axis=1)
-            nd_var = matrix_all[:, n_fixed:].var(axis=1)
-            fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
-            overdispersed = np.argpartition(fano, -nf2)[-nf2:]
-            ind_features |= set(overdispersed)
+            if nf2 >= len(features):
+                ind_features |= set(np.arange(matrix_all.shape[0]))
+            else:
+                nd_mean = matrix_all[:, n_fixed:].mean(axis=1)
+                nd_var = matrix_all[:, n_fixed:].var(axis=1)
+                fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
+                overdispersed = np.argpartition(fano, -nf2)[-nf2:]
+                ind_features |= set(overdispersed)
 
         # Additional features
         if features_add is not None:

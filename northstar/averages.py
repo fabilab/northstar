@@ -263,6 +263,11 @@ class Averages(object):
         if min(n_newgenes, n_newcells) < self.n_pcs:
             self.n_pcs = min(n_newgenes, n_newcells)
 
+        # New data could be too small for knn
+        if n_newcells < self.n_neighbors + 1:
+            warnings.warn('The number of cells in the new data is on the small end, reducing the number of graph neighbors')
+            self.n_neighbors = max(1, n_newcells - 1)
+
         nf1 = self.n_features_per_cell_type
         if not isinstance(nf1, int):
             raise ValueError('n_features_per_cell_type must be an int >= 0')

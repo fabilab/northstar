@@ -321,7 +321,8 @@ class Subsample(object):
         matrix[:, :n_fixed] = self.atlas['counts'].loc[features].values
         matrix[:, n_fixed:] = self.new_data.loc[features].values
         if self.normalize_counts:
-            matrix *= 1e6 / matrix.sum(axis=0)
+            # The normalization function also sets pseudocounts
+            matrix *= 1e6 / (matrix.sum(axis=0) + 0.1)
         self.matrix_all = matrix
         self.matrix = matrix
 

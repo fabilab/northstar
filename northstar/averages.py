@@ -163,8 +163,10 @@ class Averages(object):
 
         self._check_init_arguments()
         self.fetch_atlas_if_needed()
-        self.merge_atlas_newdata()
+        self.compute_feature_intersection()
+        self._check_feature_intersection()
         self.select_features()
+        self.merge_atlas_newdata()
         self.compute_pca()
         self.compute_similarity_graph()
         self.cluster_graph()
@@ -277,6 +279,15 @@ class Averages(object):
         if (nf1 < 1) and (nf2 < 1):
             raise ValueError('No features selected')
 
+    def _check_feature_intersection(self):
+        L = len(self.features_all)
+        if L == 0:
+            raise ValueError(
+                'No overlapping features in atlas and new data, are gene names correct for this species?')
+        if L < 50:
+            warnings.warn(
+                'Only {:} overlapping features found in atlas and new data'.format(L))
+
     def fetch_atlas_if_needed(self):
         '''Fetch atlas(es) if needed'''
         at = self.atlas
@@ -302,6 +313,14 @@ class Averages(object):
                     cell_types=at['cell_types'],
                     )
 
+    def compute_feature_intersection(self):
+        '''Calculate the intersection of features between atlas and new data'''
+        # Intersect features
+        atlas_features = self.atlas['counts'].index.values
+        new_data_features = self.new_data.index.values
+        features = np.intersect1d(atlas_features, new_data_features)
+        self.features_all = features
+
     def merge_atlas_newdata(self):
         '''Merge the averaged atlas data and the new data
 
@@ -317,12 +336,7 @@ class Averages(object):
         NOTE: is self.normalize is True, the merged count matrix is normalized
         by 1 million total counts.
         '''
-
-        # Intersect features
-        atlas_features = self.atlas['counts'].index.values
-        new_data_features = self.new_data.index.values
-        features = np.intersect1d(atlas_features, new_data_features)
-        self.features_all = features
+        features = self.features_all
 
         # Cells types
         self.n_fixed = n_fixed = self.atlas['counts'].shape[1]

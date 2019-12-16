@@ -257,16 +257,17 @@ class Subsample(object):
             self.n_neighbors = max(1, n_newcells - 1)
 
         nf1 = self.n_features_per_cell_type
+        nf2 = self.n_features_overdispersed
+        nf3 = self.features_additional
         if not isinstance(nf1, int):
             raise ValueError('n_features_per_cell_type must be an int >= 0')
-        nf2 = self.n_features_overdispersed
         if not isinstance(nf1, int):
             raise ValueError('n_features_overdispersed must be an int >= 0')
-        if (nf1 < 1) and (nf2 < 1):
+        if (nf1 < 1) and (nf2 < 1) and (nf3 < 1):
             raise ValueError('No features selected')
 
     def _check_feature_intersection(self):
-        L = len(self.features_all)
+        L = len(self.features_ovl)
         if L == 0:
             raise ValueError(
                 'No overlapping features in atlas and new data, are gene names correct for this species?')
@@ -302,11 +303,12 @@ class Subsample(object):
     def compute_feature_intersection(self):
         '''Calculate the intersection of features between atlas and new data'''
         # Intersect features
-        atlas_features = self.atlas['counts'].index.values
-        new_data_features = self.new_data.index.values
-        features = np.intersect1d(atlas_features, new_data_features)
-        self.features_all = features
-
+        self.features_atlas = self.atlas['counts'].index.values
+        self.features_newdata = self.new_data.index.values
+        self.features_ovl = np.intersect1d(
+                self.features_atlas,
+                self.features_newdata,
+                )
 
     def merge_atlas_newdata(self):
         '''Merge the averaged atlas data and the new data
@@ -315,14 +317,14 @@ class Subsample(object):
             - n_fixed: the number of cell types in the atlas
             - n_free: the number of cell types in the new data
             - cell_types: a 1D array with the cell types of the atlas
-            - features_all: a 1D array with the features that were found in
+            - features_ovl: a 1D array with the features that were found in
             - matrix: a 2D array with the merged counts
 
         NOTE: is self.normalize is True, the merged count matrix is normalized
         by 1 million total counts.
         '''
 
-        features = self.features_all
+        features = self.features_ovl
 
         # Cells, cell types, and cell numbers
         self.cell_names = self.atlas['counts'].columns.values
@@ -350,14 +352,14 @@ class Subsample(object):
         '''
         # Shorten arg names
         features = self.features
-        features_all = list(self.features_all)
+        features_ovl = list(self.features_ovl)
         features_add = self.features_additional
         matrix_all = self.matrix_all
 
         if features is not None:
             ind_features = []
             for fea in features:
-                ind_features.append(features_all.index(fea))
+                ind_features.append(features_ovl.index(fea))
             self.features_selected = features
             self.matrix = matrix_all[ind_features]
             return
@@ -394,12 +396,12 @@ class Subsample(object):
 
         # Additional features
         if features_add is not None:
-            tmp = pd.Series(np.arange(len(features_all)), index=features_all)
+            tmp = pd.Series(np.arange(len(features_ovl)), index=features_ovl)
             ind_features |= set(tmp.loc[features_add].values)
 
         ind_features = list(ind_features)
 
-        self.features_selected = self.features_all[ind_features]
+        self.features_selected = self.features_ovl[ind_features]
         self.matrix = matrix_all[ind_features]
 
     def compute_pca(self):

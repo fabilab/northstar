@@ -429,7 +429,6 @@ class Averages(object):
         features = self.features
         L = self.n_features
         N1 = self.n_atlas
-        N2 = self.n_newdata
         N = self.n_total
         matrix = np.empty((L, N), dtype=np.float32)
 
@@ -527,7 +526,7 @@ class Averages(object):
         n_fixed_expanded = 0
         for isi, size in enumerate(sizes):
             if isi < n_atlas:
-                cte = self.cell_types[isi]
+                cte = self.cell_types_atlas[isi]
                 n_fixed_expanded += int(size)
             else:
                 cte = ''
@@ -682,11 +681,11 @@ class Averages(object):
         membership = partition.membership[n_fixede:]
 
         # Convert the known cell types
-        lstring = len(max(self.cell_types, key=len))
+        lstring = len(max(self.cell_types_atlas, key=len))
         self.membership = np.array(
                 [str(x) for x in membership],
                 dtype='U{:}'.format(lstring))
-        for i, ct in enumerate(self.cell_types):
+        for i, ct in enumerate(self.cell_types_atlas):
             self.membership[self.membership == str(i)] = ct
 
     def estimate_closest_atlas_cell_type(self):

@@ -105,6 +105,11 @@ def test_neighbors_small():
     sa.new_data = matrix
     sa._check_init_arguments()
     sa.fetch_atlas_if_needed()
+    sa.compute_feature_intersection()
+    sa._check_feature_intersection()
+    sa.prepare_feature_selection()
+    sa.select_features()
+    sa._check_feature_selection()
     sa.merge_atlas_newdata()
     sa.compute_pca()
     sa.compute_similarity_graph()

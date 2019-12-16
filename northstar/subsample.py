@@ -22,7 +22,6 @@ class Subsample(object):
     def __init__(
             self,
             atlas,
-            features=None,
             n_features_per_cell_type=30,
             n_features_overdispersed=500,
             features_additional=None,
@@ -68,14 +67,6 @@ class Subsample(object):
              (obs_names) and the features as columns (var_names). If an AnnData,
              it will be converted into a DataFrame.
 
-            features (list of str or None): list of features to select after
-             normalization. If None, features will be selected automatically
-             based on the two next arguments, 'n_features_per_cell_type' and
-             'n_features_overdispersed'. Notice that to ensure a consistent
-             normalization of the atlas and the new data, feature selection
-             needs to happen after normalization, so it is not recommended to
-             input a pre-feature selected matrix.
-
             n_features_per_cell_type (int): number of features marking each
              fixed column (atlas cell type).
 
@@ -117,7 +108,6 @@ class Subsample(object):
         '''
 
         self.atlas = atlas
-        self.features = features
         self.n_features_per_cell_type = n_features_per_cell_type
         self.n_features_overdispersed = n_features_overdispersed
         self.features_additional = features_additional
@@ -152,7 +142,9 @@ class Subsample(object):
         self.fetch_atlas_if_needed()
         self.compute_feature_intersection()
         self._check_feature_intersection()
+        self.prepare_feature_selection()
         self.select_features()
+        self._check_feature_selection()
         self.merge_atlas_newdata()
         self.compute_pca()
         self.compute_similarity_graph()
@@ -275,6 +267,16 @@ class Subsample(object):
             warnings.warn(
                 'Only {:} overlapping features found in atlas and new data'.format(L))
 
+    def _check_feature_selection(self):
+        L = len(self.features)
+        if L == 0:
+            raise ValueError(
+                'No features selected, check nortstar parameters')
+        if L < self.n_pcs:
+            warnings.warn(
+                'Only {:} features selected, reducing PCA to those number of components'.format(L))
+            self.n_pcs = L
+
     def fetch_atlas_if_needed(self):
         '''Fetch atlas(es) if needed'''
         at = self.atlas
@@ -310,39 +312,16 @@ class Subsample(object):
                 self.features_newdata,
                 )
 
-    def merge_atlas_newdata(self):
-        '''Merge the averaged atlas data and the new data
+    def prepare_feature_selection(self):
+        # Cell names and types
+        self.cell_types_atlas = self.atlas['cell_types'].values
+        self.cell_names_atlas = self.atlas['counts'].columns.values
+        self.cell_names_newdata = self.new_data.columns.copy()
 
-        This function sets the properties:
-            - n_fixed: the number of cell types in the atlas
-            - n_free: the number of cell types in the new data
-            - cell_types: a 1D array with the cell types of the atlas
-            - features_ovl: a 1D array with the features that were found in
-            - matrix: a 2D array with the merged counts
-
-        NOTE: is self.normalize is True, the merged count matrix is normalized
-        by 1 million total counts.
-        '''
-
-        features = self.features_ovl
-
-        # Cells, cell types, and cell numbers
-        self.cell_names = self.atlas['counts'].columns.values
-        self.cell_types = self.atlas['cell_types'].values
-        self.n_fixed = n_fixed = self.atlas['counts'].shape[1]
-        self.n_free = n_free = self.new_data.shape[1]
-
-        # Count matrix
-        L = len(features)
-        N = n_fixed + n_free
-        matrix = np.empty((L, N), dtype=np.float32)
-        matrix[:, :n_fixed] = self.atlas['counts'].loc[features].values
-        matrix[:, n_fixed:] = self.new_data.loc[features].values
-        if self.normalize_counts:
-            # The normalization function also sets pseudocounts
-            matrix *= 1e6 / (matrix.sum(axis=0) + 0.1)
-        self.matrix_all = matrix
-        self.matrix = matrix
+        # Numbers
+        self.n_atlas = self.atlas['counts'].shape[1]
+        self.n_newdata = self.new_data.shape[1]
+        self.n_total = self.n_atlas + self.n_newdata
 
     def select_features(self):
         '''Select features that define heterogeneity of the atlas and new data
@@ -350,59 +329,95 @@ class Subsample(object):
         Returns:
             ndarray of feature names.
         '''
-        # Shorten arg names
-        features = self.features
+        features_atlas = self.features_atlas
+        features_newdata = self.features_newdata
         features_ovl = list(self.features_ovl)
         features_add = self.features_additional
-        matrix_all = self.matrix_all
 
-        if features is not None:
-            ind_features = []
-            for fea in features:
-                ind_features.append(features_ovl.index(fea))
-            self.features_selected = features
-            self.matrix = matrix_all[ind_features]
-            return
-
-        aa = self.cell_types
-        aau = list(np.unique(aa))
-        n_fixed = self.n_fixed
         nf1 = self.n_features_per_cell_type
         nf2 = self.n_features_overdispersed
 
-        ind_features = set()
+        cell_types = self.cell_types_atlas
+        cell_typesu = list(np.unique(cell_types))
+
+        features = set()
 
         # Atlas markers
-        if len(aau) > 1:
-            for au in aau:
-                icol1 = (aa == au).nonzero()[0]
-                icol2 = (aa != au).nonzero()[0]
-                ge1 = matrix_all[:, icol1].mean(axis=1)
-                ge2 = matrix_all[:, icol2].mean(axis=1)
+        if len(cell_typesu) > 1:
+            matrix = self.atlas['counts'].values
+            for au in cell_typesu:
+                icol1 = (cell_types == au).nonzero()[0]
+                icol2 = (cell_types != au).nonzero()[0]
+                ge1 = matrix[:, icol1].mean(axis=1)
+                ge2 = matrix[:, icol2].mean(axis=1)
                 fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
-                markers = np.argpartition(fold_change, -nf1)[-nf1:]
-                ind_features |= set(markers)
+                tmp = np.argsort(fold_change)[::-1]
+                ind_markers_atlas = []
+                for i in tmp:
+                    if features_atlas[i] in features_ovl:
+                        ind_markers_atlas.append(i)
+                    if len(ind_markers_atlas) == nf1:
+                        break
+                # Add atlas markers
+                features |= set(features_atlas[ind_markers_atlas])
 
         # Unbiased on new data
         if nf2 > 0:
-            if nf2 >= len(features):
-                ind_features |= set(np.arange(matrix_all.shape[0]))
+            if nf2 >= len(features_ovl):
+                features |= set(features_ovl)
             else:
-                nd_mean = matrix_all[:, n_fixed:].mean(axis=1)
-                nd_var = matrix_all[:, n_fixed:].var(axis=1)
+                matrix = self.new_data.values
+                nd_mean = matrix.mean(axis=1)
+                nd_var = matrix.var(axis=1)
                 fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
-                overdispersed = np.argpartition(fano, -nf2)[-nf2:]
-                ind_features |= set(overdispersed)
+                tmp = np.argsort(fano)[::-1]
+                ind_ovd_newdata = []
+                for i in tmp:
+                    if features_newdata[i] in features_ovl:
+                        ind_ovd_newdata.append(i)
+                    if len(ind_ovd_newdata) == nf2:
+                        break
+                # Add overdispersed features
+                features |= set(features_newdata[ind_ovd_newdata])
 
         # Additional features
         if features_add is not None:
-            tmp = pd.Series(np.arange(len(features_ovl)), index=features_ovl)
-            ind_features |= set(tmp.loc[features_add].values)
+            features |= (set(features_add) & set(features_ovl))
 
-        ind_features = list(ind_features)
+        self.features = np.array(list(features))
 
-        self.features_selected = self.features_ovl[ind_features]
-        self.matrix = matrix_all[ind_features]
+    def merge_atlas_newdata(self):
+        '''Merge atlas data and the new data after feature selection
+
+        NOTE: is self.normalize is True, the merged count matrix is normalized
+        by 1 million total counts.
+        '''
+
+        features = self.features
+        L = len(features)
+        N = self.n_total
+        N1 = self.n_atlas
+        matrix = np.empty((L, N), dtype=np.float32)
+
+        # Find the feature indices for atlas
+        ind_features_atlas = pd.Series(
+            np.arange(len(self.features_atlas)),
+            index=self.features_atlas,
+            ).loc[features].values
+        matrix[:, :N1] = self.atlas['counts'].values[ind_features_atlas]
+
+        # Find the feature indices for new data
+        ind_features_newdata = pd.Series(
+            np.arange(len(self.features_newdata)),
+            index=self.features_newdata,
+            ).loc[features].values
+        matrix[:, N1:] = self.new_data.values[ind_features_newdata]
+
+        # The normalization function also sets pseudocounts
+        if self.normalize_counts:
+            matrix *= 1e6 / (matrix.sum(axis=0) + 0.1)
+
+        self.matrix = matrix
 
     def compute_pca(self):
         '''Compute k nearest neighbors from a matrix with fixed nodes
@@ -423,7 +438,7 @@ class Subsample(object):
         from sklearn.decomposition import PCA
 
         matrix = self.matrix
-        n_fixed = self.n_fixed
+        n_fixed = self.n_atlas
         n_pcs = self.n_pcs
 
         # Test input arguments
@@ -449,7 +464,7 @@ class Subsample(object):
 
         self.pca_data = {
             'pcs': rvects,
-            'cell_type': np.array(list(self.cell_types) + [''] * (N - n_fixed)),
+            'cell_type': np.array(list(self.cell_types_atlas) + [''] * (N - n_fixed)),
             'n_atlas': n_fixed,
             }
 
@@ -518,9 +533,9 @@ class Subsample(object):
         opt = leidenalg.Optimiser()
 
         matrix = self.matrix
-        aa = self.cell_types
+        aa = self.cell_types_atlas
         aau = list(np.unique(aa))
-        n_fixed = self.n_fixed
+        n_fixed = self.n_atlas
         clustering_metric = self.clustering_metric
         resolution_parameter = self.resolution_parameter
         g = self.graph
@@ -532,7 +547,7 @@ class Subsample(object):
         aaun = len(aau)
         initial_membership = []
         for j in range(N):
-            if j < self.n_fixed:
+            if j < self.n_atlas:
                 mb = aau.index(aa[j])
             else:
                 mb = aaun + (j - n_fixed)
@@ -560,7 +575,7 @@ class Subsample(object):
         membership = partition.membership[n_fixed:]
 
         # Convert the known cell types
-        lstring = len(max(self.cell_types, key=len))
+        lstring = len(max(self.cell_types_atlas, key=len))
         self.membership = np.array(
                 [str(x) for x in membership],
                 dtype='U{:}'.format(lstring))
@@ -572,9 +587,9 @@ class Subsample(object):
         from scipy.spatial.distance import cdist
 
         matrix = self.matrix
-        n_fixed = self.n_fixed
+        n_fixed = self.n_atlas
         metric = self.distance_metric
-        cell_types = self.cell_types
+        cell_types = self.cell_types_atlas
 
         # Calculate averages for the new clusters
         ct_new = list(set(self.membership) - set(cell_types))

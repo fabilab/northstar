@@ -365,7 +365,6 @@ class Averages(object):
             ndarray of feature names.
 
         '''
-        # Shorten arg names
         features_atlas = self.features_atlas
         features_newdata = self.features_newdata
         features_ovl = list(self.features_ovl)
@@ -418,7 +417,6 @@ class Averages(object):
             features |= (set(features_add) & set(features_ovl))
 
         self.features = np.array(list(features))
-        self.n_features = len(self.features)
 
     def merge_atlas_newdata(self):
         '''Merge atlas data and the new data after feature selection
@@ -427,7 +425,7 @@ class Averages(object):
         by 1 million total counts.
         '''
         features = self.features
-        L = self.n_features
+        L = len(features)
         N1 = self.n_atlas
         N = self.n_total
         matrix = np.empty((L, N), dtype=np.float32)

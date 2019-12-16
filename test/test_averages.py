@@ -69,6 +69,11 @@ def test_merge_small():
     sa.new_data = matrix
     sa._check_init_arguments()
     sa.fetch_atlas_if_needed()
+    sa.compute_feature_intersection()
+    sa._check_feature_intersection()
+    sa.prepare_feature_selection()
+    sa.select_features()
+    sa._check_feature_selection()
     sa.merge_atlas_newdata()
 
     assert(sa is not None)

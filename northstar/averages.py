@@ -330,11 +330,15 @@ class Averages(object):
         # Cell names and types
         self.cell_types_atlas = self.atlas['counts'].columns.values
         self.cell_names_atlas = self.atlas['counts'].columns.values
-        self.cell_names_newdata = self.newdata.columns.copy()
+        self.cell_names_newdata = self.new_data.columns.copy()
         ctypes_ext = []
         cnames_ext = []
-        for i, ni in enumerate(self.n_cells_per_type):
-            for ii in ni:
+        if self.n_cells_per_type is None:
+            ncells_per_ct = self.atlas['number_of_cells'].values.astype(np.int64)
+        else:
+            ncells_per_ct = [self.n_cells_per_type] * self.atlas['counts'].shape[1]
+        for i, ni in enumerate(ncells_per_ct):
+            for ii in range(ni):
                 ctypes_ext.append(self.cell_types_atlas[i])
                 cnames_ext.extend(self.cell_types_atlas[i]+'_{:}'.format(ii+1))
         self.cell_types_atlas_extended = ctypes_ext
@@ -431,23 +435,23 @@ class Averages(object):
 
         # Find the feature indices for atlas
         ind_features_atlas = pd.Series(
-            np.arange(self.features_atlas),
+            np.arange(len(self.features_atlas)),
             index=self.features_atlas,
             ).loc[features].values
         matrix[:, :N1] = self.atlas['counts'].values[ind_features_atlas]
 
         # Find the feature indices for new data
         ind_features_newdata = pd.Series(
-            np.arange(self.features_newdata),
+            np.arange(len(self.features_newdata)),
             index=self.features_newdata,
             ).loc[features].values
-        matrix[:, N1:] = self.newdata.values[ind_features_newdata]
+        matrix[:, N1:] = self.new_data.values[ind_features_newdata]
 
         # The normalization function also sets pseudocounts
         if self.normalize_counts:
             matrix *= 1e6 / (matrix.sum(axis=0) + 0.1)
 
-        self.matrix = self.matrix
+        self.matrix = matrix
 
     def compute_pca(self):
         '''Compute k nearest neighbors from a matrix with fixed nodes

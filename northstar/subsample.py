@@ -619,12 +619,19 @@ class Subsample(object):
         X = self.pca_data['pcs']
         index = list(self.cell_names_atlas) + list(self.cell_names_newdata)
 
-        if method == 'tsne':
+        if method == 'pca':
+            emb = X[:, :2]
+        elif method == 'tsne':
             from sklearn.manifold import TSNE
-
             kwargs['perplexity'] = kwargs.get('perplexity', 30)
-
             model = TSNE(
+                n_components=2,
+                **kwargs,
+                )
+            emb = model.fit_transform(X)
+        elif method == 'umap':
+            from umap import UMAP
+            model = UMAP(
                 n_components=2,
                 **kwargs,
                 )

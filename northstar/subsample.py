@@ -637,5 +637,9 @@ class Subsample(object):
                 )
             emb = model.fit_transform(X)
 
-        res = pd.DataFrame(emb, index=index, columns=['Dimension 1', 'Dimension 2'])
+        res = pd.DataFrame(
+            emb,
+            index=index,
+            columns=['Dimension 1', 'Dimension 2'],
+            )
         return res

@@ -340,7 +340,7 @@ class Averages(object):
         for i, ni in enumerate(ncells_per_ct):
             for ii in range(ni):
                 ctypes_ext.append(self.cell_types_atlas[i])
-                cnames_ext.extend(self.cell_types_atlas[i]+'_{:}'.format(ii+1))
+                cnames_ext.append(self.cell_types_atlas[i]+'_{:}'.format(ii+1))
         self.cell_types_atlas_extended = ctypes_ext
         self.cell_names_atlas_extended = cnames_ext
 
@@ -724,3 +724,21 @@ class Averages(object):
         closest = pd.Series(cell_types[closest], index=cell_types_new)
 
         return closest
+
+    def embed(self, method='tsne', **kwargs):
+        X = self.pca_data['pcs_expanded']
+        index = list(self.cell_names_atlas_extended) + list(self.cell_names_newdata)
+
+        if method == 'tsne':
+            from sklearn.manifold import TSNE
+
+            kwargs['perplexity'] = kwargs.get('perplexity', 30)
+
+            model = TSNE(
+                n_components=2,
+                **kwargs,
+                )
+            emb = model.fit_transform(X)
+
+        res = pd.DataFrame(emb, index=index, columns=['Dimension 1', 'Dimension 2'])
+        return res

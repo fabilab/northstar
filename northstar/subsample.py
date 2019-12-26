@@ -614,3 +614,21 @@ class Subsample(object):
         closest = pd.Series(cell_types[closest], index=ct_new)
 
         return closest
+
+    def embed(self, method='tsne', **kwargs):
+        X = self.pca_data['pcs']
+        index = list(self.cell_names_atlas) + list(self.cell_names_newdata)
+
+        if method == 'tsne':
+            from sklearn.manifold import TSNE
+
+            kwargs['perplexity'] = kwargs.get('perplexity', 30)
+
+            model = TSNE(
+                n_components=2,
+                **kwargs,
+                )
+            emb = model.fit_transform(X)
+
+        res = pd.DataFrame(emb, index=index, columns=['Dimension 1', 'Dimension 2'])
+        return res

@@ -6,9 +6,11 @@ __all__ = ['Subsample']
 
 import warnings
 import numpy as np
+import scipy as sp
 import pandas as pd
 import leidenalg
 from .fetch_atlas import AtlasFetcher
+from .sparse_utils import sparse_pca
 
 try:
     from anndata import AnnData
@@ -33,6 +35,7 @@ class Subsample(object):
             resolution_parameter=0.001,
             normalize_counts=True,
             join='keep_first',
+            sparse=False,
             ):
         '''Prepare the model for cell annotation
 
@@ -105,6 +108,9 @@ class Subsample(object):
              other atlases with zeros, 'union' pads every atlas that is missing
              a feature and 'intersection' only keep features that are in all
              atlases.
+
+            sparse (bool): use sparse matrices for the calculations. This
+             option is useful for datasets with > 10,000 cells.
         '''
 
         self.atlas = atlas
@@ -119,6 +125,7 @@ class Subsample(object):
         self.resolution_parameter = resolution_parameter
         self.normalize_counts = normalize_counts
         self.join = join
+        self.sparse = sparse
 
     def fit(self, new_data):
         '''Run with subsamples of the atlas
@@ -397,25 +404,45 @@ class Subsample(object):
         L = len(features)
         N = self.n_total
         N1 = self.n_atlas
-        matrix = np.empty((L, N), dtype=np.float32)
 
         # Find the feature indices for atlas
         ind_features_atlas = pd.Series(
             np.arange(len(self.features_atlas)),
             index=self.features_atlas,
             ).loc[features].values
-        matrix[:, :N1] = self.atlas['counts'].values[ind_features_atlas]
+        submatrix_atlas = self.atlas['counts'].values[ind_features_atlas].astype(np.float32)
+        if self.normalize_counts:
+            submatrix_atlas *= 1e6 / (submatrix_atlas.sum(axis=0) + 0.1)
 
         # Find the feature indices for new data
         ind_features_newdata = pd.Series(
             np.arange(len(self.features_newdata)),
             index=self.features_newdata,
             ).loc[features].values
-        matrix[:, N1:] = self.new_data.values[ind_features_newdata]
-
-        # The normalization function also sets pseudocounts
+        submatrix_newdata = self.new_data.values[ind_features_newdata].astype(np.float32)
         if self.normalize_counts:
-            matrix *= 1e6 / (matrix.sum(axis=0) + 0.1)
+            submatrix_newdata *= 1e6 / (submatrix_newdata.sum(axis=0) + 0.1)
+
+        if self.sparse:
+            sm_i1, sm_j1 = submatrix_atlas.nonzero()
+            sm_d1 = submatrix_atlas[(sm_i1, sm_j1)]
+
+            sm_i2, sm_j2 = submatrix_newdata.nonzero()
+            sm_d2 = submatrix_newdata[(sm_i2, sm_j2)]
+
+            sm_i = np.concatenate([sm_i1, sm_i2])
+            sm_j = np.concatenate([sm_j1, sm_j2 + N1])
+            sm_d = np.concatenate([sm_d1, sm_d2])
+
+            matrix = sp.sparse.coo_matrix(
+                    (sm_d, (sm_i, sm_j)),
+                    shape=(L, N),
+                    dtype=np.float32,
+                    )
+        else:
+            matrix = np.empty((L, N), dtype=np.float32)
+            matrix[:, :N1] = submatrix_atlas
+            matrix[:, N1:] = submatrix_newdata
 
         self.matrix = matrix
 
@@ -435,8 +462,6 @@ class Subsample(object):
         2. calculate the weighted covariance matrix
         3. calculate normal PCA on that matrix
         '''
-        from sklearn.decomposition import PCA
-
         matrix = self.matrix
         n_fixed = self.n_atlas
         n_pcs = self.n_pcs
@@ -447,6 +472,44 @@ class Subsample(object):
             raise ValueError('n_fixed larger or equal matrix number of columns')
         if n_pcs > min(L, N):
             raise ValueError('n_pcs greater than smaller matrix dimension, those eigenvalues are zero')
+
+        if self.sparse:
+            self._compute_pca_sparse()
+        else:
+            self._compute_pca_dense()
+
+    def _compute_pca_sparse(self):
+        n_fixed = self.n_atlas
+        n_pcs = self.n_pcs
+        L, N = self.matrix.shape
+
+        # 0. take log
+        # TODO: do it in place??
+        matrix = sp.sparse.coo_matrix(
+            (np.log10(self.matrix.data + 0.1), (self.matrix.row, self.matrix.col)),
+            shape=self.matrix.shape,
+            dtype=self.matrix.dtype,
+            ).tocsc()
+
+        # 1. calculate mean
+        mu = matrix.mean(axis=1).A.flatten()[None, :]
+
+        # 2. sparse SVD using Alex's solver
+        rvects, _ = sparse_pca(matrix.T, n_pcs, mu=mu)
+
+        self.pca_data = {
+            'pcs': rvects,
+            'cell_type': np.array(list(self.cell_types_atlas) + [''] * (N - n_fixed)),
+            'n_atlas': n_fixed,
+            }
+
+    def _compute_pca_dense(self):
+        from sklearn.decomposition import PCA
+
+        matrix = self.matrix
+        n_fixed = self.n_atlas
+        n_pcs = self.n_pcs
+        L, N = self.matrix.shape
 
         # 0. take log
         matrix = np.log10(matrix + 0.1)

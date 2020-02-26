@@ -49,7 +49,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'singlet'
+project = 'northstar'
 copyright = '2019, Fabio Zanini'
 author = 'Fabio Zanini'
 
@@ -154,7 +154,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-        (master_doc, '{:}.tex'.format(project_name), 'singlet Documentation',
+        (master_doc, '{:}.tex'.format(project_name), 'northstar Documentation',
          author, 'manual'),
 ]
 
@@ -164,7 +164,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, project_name, 'singlet Documentation',
+    (master_doc, project_name, 'northstar Documentation',
      [author], 1)
 ]
 

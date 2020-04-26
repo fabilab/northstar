@@ -57,7 +57,7 @@ class Subsample(object):
              above, e.g. to select only alpha cells from Enge_2017 you can use:
              atlas={'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}.
              The second option describes a custom cell atlas. In this case, the
-             dict must have two entries, 'number_of_cells' and 'counts'.
+             dict must have two entries, 'cell_types' and 'counts'.
              'cell_types' is a pandas Series with the cell names as
              index and the cell types to use for each cell as values.
              'counts' is a pandas.DataFrame or an anndata.AnnData structure.
@@ -211,8 +211,8 @@ class Subsample(object):
                 at['counts'] = at['counts'].T.to_df()
 
             # even within AnnData, metadata colunms are pandas.DataFrame
-            if not isinstance(at['cell_types'], pd.DataFrame):
-                raise ValueError('atlas["cell_types"] must be a dataframe')
+            if not isinstance(at['cell_types'], pd.Series):
+                raise ValueError('atlas["cell_types"] must be a pd.Series')
             if at['counts'].shape[1] != at['cell_types'].shape[0]:
                 raise ValueError(
                     'atlas counts and cell_types must have the same cells')

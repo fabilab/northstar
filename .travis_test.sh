@@ -7,7 +7,9 @@ if [ "$TRAVIS_OS_NAME" == 'osx' ]; then
   PYTEST=$(which pytest)
 else
   PYTHON=${PYTHON:-python}
-  PYTEST=${PYTEST:-"pytest -rxXs --cov=northstar/"}
+  # coveralls is misbehaving
+  #PYTEST=${PYTEST:-"pytest -rxXs --cov=northstar/"}
+  PYTEST=${PYTEST:-"pytest"}
 fi
 
 echo "python: ${PYTHON}"

@@ -32,7 +32,7 @@ pip install northstar
 To automatically download and use our online atlas collection at [https://northstaratlas.github.io/atlas_averages/](https://northstaratlas.github.io/atlas_averages/), you will need to call:
 
 ```bash
-pip install northstar[atlas-fetcher]
+pip install 'northstar[atlas-fetcher]'
 ```
 
 ### Dependencies

@@ -33,7 +33,7 @@ To automatically download and use our online atlas collection at `https://norths
 
 .. code-block:: bash
 
-  pip install northstar[atlas-fetcher]
+  pip install 'northstar[atlas-fetcher]'
 
 Dependencies
 ````````````````````````

@@ -24,7 +24,7 @@ setup(
     version=update_version(),
     author="Fabio Zanini",
     author_email="fabio.zanini@fastmail.fm",
-    description="Cell type annotation guided by cell atlases, with freedom to be queer.",
+    description="Single cell type annotation guided by cell atlases, with freedom to be queer.",
     license="MIT",
     keywords="graph semi-supervised",
     url="https://github.com/northstaratlas/northstar",

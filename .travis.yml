@@ -32,14 +32,20 @@ matrix:
       env: CONDA_PY='3.8'
       language: generic
       os: osx
-      script: ./.travis_test.sh
       osx_image: xcode11
+      script: ./.travis_test.sh
     - stage: Test
       env: CONDA_PY='3.7'
       language: generic
       os: osx
-      script: ./.travis_test.sh
       osx_image: xcode11
+      script: ./.travis_test.sh
+    - stage: Test
+      env: CONDA_PY='3.6'
+      language: generic
+      os: osx
+      osx_image: xcode11
+      script: ./.travis_test.sh
 
     # Deployment related
     - stage: Deploy
@@ -48,13 +54,21 @@ matrix:
       os: linux
       dist: bionic
       script: ./.travis_deploy.sh
+
+    # Test installation from testpypi or pypi (whichever was deployed)
     - stage: Test_deployed
       if: tag =~ /^release_[0-9]+\.[0-9]+\.[0-9]+/
       python: 3.8
       os: linux
       dist: bionic
-      script:
-        - ./.travis_test.sh
+      script: ./.travis_test.sh
+    - stage: Test_deployed
+      if: tag =~ /^release_[0-9]+\.[0-9]+\.[0-9]+/
+      env: CONDA_PY='3.8'
+      language: generic
+      os: osx
+      osx_image: xcode11
+      script: ./.travis_test.sh
 
 before_install:
   - ./.travis_before_install.sh

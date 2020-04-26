@@ -9,7 +9,7 @@
 
 ![Logo](docs/_static/logo.png)
 # northstar
-Cell type annotation guided by cell atlases, with freedom to be queer.
+Single cell type annotation guided by cell atlases, with freedom to be queer.
 
 ## Brief description
 `northstar` is a Python package to identify cell types within single cell transcriptomics datasets.

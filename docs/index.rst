@@ -8,7 +8,7 @@
 
 northstar
 =================
-Cell type annotation guided by cell atlases, with freedom to be queer.
+Single cell type annotation guided by cell atlases, with freedom to be queer.
 
 
 Brief description

@@ -54,7 +54,6 @@ matrix:
       os: linux
       dist: bionic
       script:
-        - ./.travis_install.sh
         - ./.travis_test.sh
 
 before_install:

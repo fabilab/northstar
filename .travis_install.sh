@@ -13,6 +13,9 @@ if [ $TRAVIS_BUILD_STAGE_NAME == "Test" ]; then
       exit 1
   fi
 
+elif [ $TRAVIS_BUILD_STAGE_NAME == "Deploy" ]; then
+  echo "Nothing to install for deploy stage"
+
 elif [ $TRAVIS_BUILD_STAGE_NAME == "Test_deployed" ]; then
   # only test deployed builds for a release_<sematic-version>_RC?? tag to testpypi
   if [ -z $TRAVIS_TAG ]; then
@@ -30,9 +33,6 @@ elif [ $TRAVIS_BUILD_STAGE_NAME == "Test_deployed" ]; then
     echo 'No TAG2, exit'
     exit 1;
   fi
-
- echo "Uninstalling local version"
- pip uninstall northstar
 
  # deploy onto pypitest unless you have no RC
  if [ -z $TAG3 ]; then

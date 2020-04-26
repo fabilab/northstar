@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/iosonofabio/northstar.svg?branch=master)](https://travis-ci.org/iosonofabio/northstar)
+[![Build Status](https://travis-ci.org/northstaratlas/northstar.svg?branch=master)](https://travis-ci.org/northstaratlas/northstar)
 [![License: MIT](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![ReleaseVersion](https://img.shields.io/pypi/v/northstar?color=limegreen)](https://pypi.org/project/northstar/)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar?ref=badge_shield)
@@ -18,7 +18,7 @@ northstar's superpower is that it learns from cell atlases but still allows quee
 Also, northstar was heavily developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride).
 
 ## Atlas resources
-![Atlas averages](https://iosonofabio.github.io/atlas_landmarks/static/logo.png)
+![Atlas averages](https://northstaratlas.github.io/atlas_landmarks/static/logo.png)
 
 Curated averages and subsamples from several atlases: https://northstaratlas.github.io/atlas_landmarks/
 

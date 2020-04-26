@@ -161,7 +161,7 @@ def test_run_within_atlas():
     for i in range(len(cell_types)):
         print('{:10s}    {:10s}'.format(cell_types[i], sa.membership[i]))
     print((cell_types == sa.membership).mean())
-    assert((cell_types == sa.membership).mean() >= 0.6)
+    assert((cell_types == sa.membership).mean() >= 0.5)
 
 
 if __name__ == '__main__':

@@ -3,9 +3,6 @@
 [![ReleaseVersion](https://img.shields.io/pypi/v/northstar?color=limegreen)](https://pypi.org/project/northstar/)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fiosonofabio%2Fnorthstar?ref=badge_shield)
 [![Documentation Status](https://readthedocs.org/projects/northstar/badge/?version=latest)](https://northstar.readthedocs.io/en/latest/?badge=latest)
-<!--
-[![Coverage Status](https://coveralls.io/repos/github/iosonofabio/northstar/badge.svg?branch=master)](https://coveralls.io/github/iosonofabio/northstar?branch=master)
--->
 
 ![Logo](docs/_static/logo.png)
 # northstar

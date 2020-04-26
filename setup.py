@@ -34,4 +34,20 @@ setup(
         "Topic :: Utilities",
         "License :: OSI Approved :: MIT License",
     ],
+    install_requires=[
+        'numpy',
+        'pandas',
+        'scikit-learn',
+        'python-igraph>=0.8.0',
+        'leidenalg>=0.8.0',
+        'loompy',
+    ],
+    setup_requires=[
+        'numpy',
+        'pandas',
+        'scikit-learn',
+        'python-igraph>=0.8.0',
+        'leidenalg>=0.8.0',
+        'loompy',
+    ],
 )

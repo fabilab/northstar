@@ -15,7 +15,7 @@ Cell type annotation guided by cell atlases, with freedom to be queer.
 `northstar` is a Python package to identify cell types within single cell transcriptomics datasets.
 northstar's superpower is that it learns from cell atlases but still allows queer cells to make their own cluster if they want to.
 
-Also, northstar was mostly developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride), so we couldn't abstain from showing our support.
+Also, northstar was heavily developed during [Pride Month](https://en.wikipedia.org/wiki/Gay_pride).
 
 ## Atlas resources
 ![Atlas averages](https://iosonofabio.github.io/atlas_landmarks/static/logo.png)
@@ -37,31 +37,14 @@ pip install northstar
 - `scipy`
 - `pandas`
 - `scikit-learn`
-- `igraph` and `python-igraph`: this is best done by installing directly `python-igraph` via pip. That will also install the C core `iGraph` library. If you are on Windows, use the binaries as suggested on the `python-igraph` GitHub page.
-- `leidenalg`: you need the develop git branch (instruction here below).
+- `python-igraph>=0.8.0`
+- `leidenalg>=0.8.0`
 
-To automatically download and use our curated online atlas collection at https://northstaratlas.github.io/atlas_landmarks/, you will also need:
-- `requests`
-- `loompy`
-
-To install `leidenalg in its development branch`:
-```bash
-git clone --branch develop --single-branch https://github.com/vtraag/leidenalg.git
-cd leidenalg
-python setup.py install
-```
-
-Once all dependencies are installed, clone this repo:
-```bash
-git clone https://github.com/northstaratlas/northstar.git
-```
-Then `cd` into it and run the setup the usual Python way:
-```bash
-cd northstar
-python setup.py install
-```
+It is recommended that you install python-igraph and leidenalg using `pip`. However, any installation (e.g. conda) that includes recent enough versions of both packages will work.
 
 ## Usage
+See the paper below or the documentation for detailed instructions and examples. The simplest way to use `northstar` is to classify a new single cell dataset using one of the available atlases, e.g. `Darmanis_2015` on brain cells:
+
 ```python
 import northstar
 
@@ -92,8 +75,10 @@ model.fit(new_dataset)
 membership = model.membership
 ```
 
-## Roadmap
-We are writing up a paper to describe it.
+## Citation
+If you use this software please cite the following paper:
+
+Fabio Zanini\*, Bojk A. Berghuis\*, Robert C. Jones, Benedetta Nicolis di Robilant, Rachel Yuan Nong, Jeffrey Norton, Michael F. Clarke, Stephen R. Quake. northstar: leveraging cell atlases to identify healthy and neoplastic cells in transcriptomes from human tumors. bioRxiv 820928; doi: https://doi.org/10.1101/820928 
 
 ## License notes
 NOTE: The module leidenalg to perform graph-based clstering is released

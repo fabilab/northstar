@@ -3,6 +3,12 @@ language: python
 matrix:
  include: 
     - stage: Test
+      python: 3.8
+      os: linux
+      dist: bionic
+      script: ./.travis_test.sh
+      script: coveralls
+    - stage: Test
       python: 3.7
       os: linux
       dist: xenial
@@ -15,10 +21,17 @@ matrix:
       script: ./.travis_test.sh
       script: coveralls
     - stage: Test
-      env: CC=gcc PYTHON_VERSION='3.7'
+      env: CC=gcc CONDA_PY='3.8'
       language: generic
       os: osx
       script: ./.travis_test.sh
+      osx_image: xcode11
+    - stage: Test
+      env: CC=gcc CONDA_PY='3.7'
+      language: generic
+      os: osx
+      script: ./.travis_test.sh
+      osx_image: xcode11
     - stage: Deploy
       python: 3.7
       os: linux

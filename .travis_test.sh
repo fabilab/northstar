@@ -2,7 +2,8 @@
 if [ "$TRAVIS_OS_NAME" == 'osx' ]; then
   export PATH="$HOME/miniconda/bin:$PATH"
   source $HOME/miniconda/bin/activate
-  PYTHON="$HOME/miniconda/bin/python$PYTHON_VERSION"
+  conda activate travis
+  PYTHON=$(which python)
   PYTEST="$HOME/miniconda/bin/pytest"
 else
   PYTHON=${PYTHON:-python}

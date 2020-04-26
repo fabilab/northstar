@@ -21,12 +21,12 @@ if [ $TAG1 != 'release' ] || [ "version = $TAG2" != $(cat northstar/_version.py)
 fi
 VERSION=$TAG2
 
-# For now deploy only Linux Python 3.7 (it's pure Python)
+# For now deploy only Linux Python 3.8 (it's pure Python)
 if [ $TRAVIS_OS_NAME != 'linux' ]; then
   echo 'Not linux, exit'
   exit 0
 fi
-if [ $TRAVIS_PYTHON_VERSION != '3.7' ]; then
+if [ $TRAVIS_PYTHON_VERSION != '3.8' ]; then
   echo "Not Python 3.7, exit"
   exit 0
 fi

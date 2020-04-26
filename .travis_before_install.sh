@@ -7,25 +7,28 @@ if [ $TRAVIS_OS_NAME == 'linux' ]; then
   #sudo apt-get -qq update
   #sudo apt-get install igraph
 elif [ $TRAVIS_OS_NAME == 'osx' ]; then
+  echo "Find out OSX version"
+  osx_version=$(sw_vers -productVersion)
+  echo "OSX version: $osx_version"
+
   echo "Installing deps for OSX"
-  if [ $PYTHON_VERSION == "2.7" ]; then
-    CONDA_VER='2'
-  elif [ $PYTHON_VERSION == "3.7" ]; then
-    CONDA_VER='3'
-  else
-    echo "Miniconda only supports 2.7 and 3.7"
-  fi
-  curl "https://repo.continuum.io/miniconda/Miniconda${CONDA_VER}-latest-MacOSX-x86_64.sh" -o "miniconda.sh"
-  bash "miniconda.sh" -b -p $HOME/miniconda
+  # Prepare to exit upon failure
+  set -e
+  CONDA_URL="https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh"
+  wget -nv "${CONDA_URL}"
+  bash Miniconda3-latest-MacOSX-x86_64.sh -b -p $HOME/miniconda
+
   echo "$PATH"
   export PATH="$HOME/miniconda/bin:$PATH"
   source $HOME/miniconda/bin/activate
+
+  # Make conda environment and activate
+  conda create -y -n travis python=$CONDA_PY
+  conda activate travis
+
   # Use pip from conda
   conda install -y pip
   pip --version
-
-  # NOTE: leidenalg installs igraph (in a somewhat messy way for now)
-  #conda install -c conda-forge -y igraph
 
 else
   echo "OS not recognized: $TRAVIS_OS_NAME"
@@ -49,8 +52,10 @@ if [ $TRAVIS_BUILD_STAGE_NAME != "Deploy" ]; then
   echo "Install python-igraph. It takes care of installing the igraph C library"
   pip install python-igraph
   
-  echo "Install development version of leidenalg"
-  git clone --single-branch --branch develop https://github.com/vtraag/leidenalg.git
-  cd leidenalg
-  python setup.py install
+  echo "Install leidnalg"
+  pip install leidenalg
+  #echo "Install development version of leidenalg"
+  #git clone --single-branch --branch develop https://github.com/vtraag/leidenalg.git
+  #cd leidenalg
+  #python setup.py install
 fi

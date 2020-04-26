@@ -40,7 +40,6 @@ setup(
         'scikit-learn',
         'python-igraph>=0.8.0',
         'leidenalg>=0.8.0',
-        'loompy',
     ],
     setup_requires=[
         'numpy',
@@ -48,6 +47,11 @@ setup(
         'scikit-learn',
         'python-igraph>=0.8.0',
         'leidenalg>=0.8.0',
-        'loompy',
     ],
+    extras_require={
+        'atlas-fetcher': [
+            'requests',
+            'loompy',
+        ]
+    },
 )

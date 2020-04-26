@@ -91,7 +91,9 @@ If you use this software please cite the following paper:
 
 Fabio Zanini\*, Bojk A. Berghuis\*, Robert C. Jones, Benedetta Nicolis di Robilant, Rachel Yuan Nong, Jeffrey Norton, Michael F. Clarke, Stephen R. Quake. northstar: leveraging cell atlases to identify healthy and neoplastic cells in transcriptomes from human tumors. bioRxiv 820928; doi: https://doi.org/10.1101/820928 
 
-## License notes
+## License
+`northstar` is released under the MIT license.
+
 NOTE: The module leidenalg to perform graph-based clstering is released
 under the GLP3 license. You agree with those licensing terms if you use
 leidenalg within northstar.

@@ -54,8 +54,4 @@ if [ $TRAVIS_BUILD_STAGE_NAME != "Deploy" ]; then
   
   echo "Install leidnalg"
   pip install leidenalg
-  #echo "Install development version of leidenalg"
-  #git clone --single-branch --branch develop https://github.com/vtraag/leidenalg.git
-  #cd leidenalg
-  #python setup.py install
 fi

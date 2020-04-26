@@ -4,7 +4,7 @@ if [ "$TRAVIS_OS_NAME" == 'osx' ]; then
   source $HOME/miniconda/bin/activate
   conda activate travis
   PYTHON=$(which python)
-  PYTEST="$HOME/miniconda/bin/pytest"
+  PYTEST=$(which pytest)
 else
   PYTHON=${PYTHON:-python}
   PYTEST=${PYTEST:-"pytest -rxXs --cov=northstar/"}

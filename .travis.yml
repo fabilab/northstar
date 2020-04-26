@@ -1,5 +1,10 @@
 language: python
 
+stages:
+  - Test
+  - Deploy
+  - Test_deployed
+
 matrix:
  include: 
     - stage: Test
@@ -33,10 +38,19 @@ matrix:
       script: ./.travis_test.sh
       osx_image: xcode11
     - stage: Deploy
+      if: tag =~ /^release_[0-9]+\.[0-9]+\.[0-9]+/
       python: 3.7
       os: linux
       dist: xenial
       script: ./.travis_deploy.sh
+    - stage: Test_deployed
+      if: tag =~ /^release_[0-9]+\.[0-9]+\.[0-9]+/
+      python: 3.8
+      os: linux
+      dist: bionic
+      script:
+        - ./.travis_install.sh
+        - ./.travis_test.sh
 
 before_install:
   - ./.travis_before_install.sh

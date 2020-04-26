@@ -32,6 +32,12 @@ https://northstar.readthedocs.io
 pip install northstar
 ```
 
+To automatically download and use our online atlas collection at [https://northstaratlas.github.io/atlas_averages/](https://northstaratlas.github.io/atlas_averages/), you will need to call:
+
+```bash
+pip install northstar[atlas-fetcher]
+```
+
 ### Dependencies
 - `numpy`
 - `scipy`
@@ -39,6 +45,11 @@ pip install northstar
 - `scikit-learn`
 - `python-igraph>=0.8.0`
 - `leidenalg>=0.8.0`
+
+Optional deps to use our online atlases:
+
+- `requests`
+- `loompy`
 
 It is recommended that you install python-igraph and leidenalg using `pip`. However, any installation (e.g. conda) that includes recent enough versions of both packages will work.
 

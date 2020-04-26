@@ -14,19 +14,20 @@ matrix:
       os: linux
       dist: bionic
       script: ./.travis_test.sh
-      script: coveralls
+      #script: coveralls
     - stage: Test
       python: 3.7
       os: linux
       dist: xenial
       script: ./.travis_test.sh
-      script: coveralls
+      #script: coveralls
     - stage: Test
       python: 3.6
       os: linux
       dist: xenial
       script: ./.travis_test.sh
-      script: coveralls
+      #script: coveralls
+
     - stage: Test
       env: CONDA_PY='3.8'
       language: generic

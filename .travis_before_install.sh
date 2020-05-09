@@ -48,6 +48,7 @@ if [ $TRAVIS_BUILD_STAGE_NAME != "Deploy" ]; then
   pip install pandas
   pip install scikit-learn
   pip install loompy
+  pip install anndata
   
   echo "Install python-igraph. It takes care of installing the igraph C library"
   pip install python-igraph

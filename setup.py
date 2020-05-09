@@ -42,6 +42,7 @@ setup(
         'scikit-learn',
         'python-igraph>=0.8.0',
         'leidenalg>=0.8.0',
+        'anndata',
     ],
     setup_requires=[
         'numpy',
@@ -49,6 +50,7 @@ setup(
         'scikit-learn',
         'python-igraph>=0.8.0',
         'leidenalg>=0.8.0',
+        'anndata',
     ],
     extras_require={
         'atlas-fetcher': [

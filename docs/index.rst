@@ -41,6 +41,7 @@ Dependencies
 - `scipy`
 - `pandas`
 - `scikit-learn`
+- `anndata`
 - `python-igraph>=0.8.0`
 - `leidenalg>=0.8.0`
 

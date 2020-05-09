@@ -7,13 +7,9 @@ __all__ = ['Subsample']
 import warnings
 import numpy as np
 import pandas as pd
+from anndata import AnnData
 import leidenalg
 from .fetch_atlas import AtlasFetcher
-
-try:
-    from anndata import AnnData
-except ImportError:
-    AnnData = None
 
 
 class Subsample(object):

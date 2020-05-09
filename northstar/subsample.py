@@ -27,8 +27,11 @@ class Subsample(object):
             features_additional=None,
             n_pcs=20,
             n_neighbors=10,
+            n_neighbors_external=0,
+            external_neighbors_mutual=False,
             distance_metric='correlation',
             threshold_neighborhood=0.8,
+            threshold_neighborhood_external=0.8,
             clustering_metric='cpm',
             resolution_parameter=0.001,
             normalize_counts=True,
@@ -37,12 +40,16 @@ class Subsample(object):
         '''Prepare the model for cell annotation
 
         Args:
-            atlas (str, list of str, or dict): cell atlas to use. If a str,
-             the corresponding cell atlas from:
+            atlas (str, list of str, list of dict, or dict): cell atlas to use.
+             Generally there are two possibilities.
+
+             The first possibility selects the corresponding cell atlas or
+             atlases from northstar's online resource. The names of currently
+             available dataset is here:
 
              https://github.com/iosonofabio/atlas_averages/blob/master/table.tsv
 
-             is fetched (check the first column for atlas names). If a list of
+             (check the first column for atlas names). If a list of
              str, multiple atlases will be fetched and combined. Only features
              that are in all atlases will be kept. If you use this feature, be
              careful to not mix atlases from different species. If a list of
@@ -51,16 +58,19 @@ class Subsample(object):
              dict with two key-value pairs: 'atlas_name' is the atlas name, and
              'cell_types' must be a list of cell types to retain. Example:
              atlas=[{'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}] would
-             load the atlas Enge_2017 and only retain alpha cells. If a dict,
-             it can refer to two options. The first is a single atlas with a
-             specification to retain only certain cell types. The format is as
-             above, e.g. to select only alpha cells from Enge_2017 you can use:
+             load the atlas Enge_2017 and only retain alpha cells. You can also
+             use a dict to specify a single atlas and to retain only certain cell
+             types. The format is as above, e.g. to select only alpha cells
+             from Enge_2017 you can use:
+
              atlas={'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}.
-             The second option describes a custom cell atlas. In this case, the
-             dict must have two entries, 'cell_types' and 'counts'.
-             'cell_types' is a pandas Series with the cell names as
-             index and the cell types to use for each cell as values.
-             'counts' is a pandas.DataFrame or an anndata.AnnData structure.
+
+             The second possibility is to use a custom atlas (e.g. some
+             unpublished data). 'atlas' must be a dict with two entries,
+             'cell_types' and 'counts'.
+             - 'cell_types' is a pandas Series with the cell names as index and
+             the cell types to use for each cell as values.
+             - 'counts' is a pandas.DataFrame or an anndata.AnnData structure.
              If a DataFrame, it must have features as rows and cell names as
              columns; if an AnnData, it is reversed (AnnData uses a
              different convention) and it must have the cell types as rows
@@ -81,11 +91,23 @@ class Subsample(object):
 
             n_neighbors (int): number of neighbors in the similarity graph
 
+            n_neighbors_external (int): number of additional neighbors in the
+                similarity graph that must be in the training data. This option
+                is provided to force a degree of connectivity between the
+                new data and the atlas (default: 0).
+
+            external_neighbors_mutual (bool): when using external neighbors,
+                only add them if they are mutual neighbors. This option is used
+                to balance out a little the effect of n_neighbors_external > 0.
+
             distance_metric (str): metric to use as distance. It should be a
              metric accepted by scipy.spatial.distance.cdist.
 
             threshold_neighborhood (float): do not consider distances larger
              than this as neighbors
+
+            threshold_neighborhood_external (float): do not consider distances
+                larger than this for external neighbors (if requested)
 
             clustering_metric (str): 'cpm' (default, Cell Potts Model) or
              'modularity'. Sets the type of partition used in the clustering
@@ -113,8 +135,11 @@ class Subsample(object):
         self.features_additional = features_additional
         self.n_pcs = n_pcs
         self.n_neighbors = n_neighbors
+        self.n_neighbors_external = n_neighbors_external
+        self.external_neighbors_mutual = external_neighbors_mutual
         self.distance_metric = distance_metric
         self.threshold_neighborhood = threshold_neighborhood
+        self.threshold_neighborhood_external = threshold_neighborhood_external
         self.clustering_metric = clustering_metric
         self.resolution_parameter = resolution_parameter
         self.normalize_counts = normalize_counts
@@ -480,15 +505,18 @@ class Subsample(object):
 
         matrix = self.matrix
         k = self.n_neighbors
+        ke = self.n_neighbors_external
         metric = self.distance_metric
         threshold = self.threshold_neighborhood
+        threshold_external = self.threshold_neighborhood_external
         rvects = self.pca_data['pcs']
         L, N = matrix.shape
+        N1 = self.n_atlas
 
         # 1. calculate distance matrix
         # rvects is N x n_pcs. Let us calculate the end that includes only the free
         # observations and then call cdist which kills the columns. The resulting
-        # matrix has dimensions N1 x N
+        # matrix has dimensions N x N
         dmat = squareform(pdist(rvects, metric=metric))
         dmax = dmat.max()
 
@@ -508,8 +536,25 @@ class Subsample(object):
             # Indices are not sorted within ind, we sort them to help
             # debugging even though it is not needed
             ind = ind[np.argsort(drow[ind])]
+            ind = list(ind)
 
-            nbi.extend(list(ind))
+            # Additional neighbors from the atlas if requested
+            if (ke > 0) and (i >= N1):
+                drow = drow[:N1]
+                ind2 = np.argpartition(-drow, -ke)[-ke:]
+                ind2 = ind2[drow[ind2] <= threshold_external]
+                ind2 = ind2[np.argsort(drow[ind2])]
+                ind2 = list(ind2)
+
+                # Require mutual neighbors if requested
+                if self.external_neighbors_mutual:
+                    ind2 = [x for x in ind2 if i in neighbors[x]]
+
+                for i2 in ind2:
+                    if i2 not in ind:
+                        ind.append(i2)
+
+            nbi.extend(ind)
 
         self.neighbors = neighbors
 
@@ -615,24 +660,37 @@ class Subsample(object):
 
         return closest
 
-    def embed(self, method='tsne', **kwargs):
+    def embed(self, method='tsne', n_components=2, **kwargs):
+        '''Embed atlas and new data into a low-dimensional space
+
+
+        Args:
+            method (str): One of 'tsne', 'pca', and 'umap'.
+            n_components (int): number of dimensions of the embedding
+            **kwargs: for 'tsne' and 'umap', keyword argument to their
+                constructors
+
+        Returns:
+            pd.DataFrame with the low-dimensional coordinates
+        '''
         X = self.pca_data['pcs']
         index = list(self.cell_names_atlas) + list(self.cell_names_newdata)
+        columns = ['Dimension {:}'.format(i+1) for i in range(n_components)]
 
         if method == 'pca':
-            emb = X[:, :2]
+            emb = X[:, :n_components]
         elif method == 'tsne':
             from sklearn.manifold import TSNE
             kwargs['perplexity'] = kwargs.get('perplexity', 30)
             model = TSNE(
-                n_components=2,
+                n_components=n_components,
                 **kwargs,
                 )
             emb = model.fit_transform(X)
         elif method == 'umap':
             from umap import UMAP
             model = UMAP(
-                n_components=2,
+                n_components=n_components,
                 **kwargs,
                 )
             emb = model.fit_transform(X)
@@ -640,6 +698,6 @@ class Subsample(object):
         res = pd.DataFrame(
             emb,
             index=index,
-            columns=['Dimension 1', 'Dimension 2'],
+            columns=columns,
             )
         return res

@@ -569,16 +569,16 @@ class Subsample(object):
 
         matrix = self.matrix
         aa = self.cell_types_atlas
-        aau = list(np.unique(aa))
         n_fixed = self.n_atlas
         clustering_metric = self.clustering_metric
         resolution_parameter = self.resolution_parameter
         g = self.graph
 
-        L, N = matrix.shape
+        N, L = matrix.shape
 
         # NOTE: initial membership is singletons except for atlas nodes, which
         # get the membership they have.
+        aau = list(np.unique(aa))
         aaun = len(aau)
         initial_membership = []
         for j in range(N):
@@ -629,18 +629,18 @@ class Subsample(object):
         # Calculate averages for the new clusters
         ct_new = list(set(self.membership) - set(cell_types))
         N = len(ct_new)
-        L = matrix.shape[0]
-        avg_new = np.empty((L, N), np.float32)
+        L = matrix.shape[1]
+        avg_new = np.empty((N, L), np.float32)
         for i, ct in enumerate(ct_new):
-            avg_new[i] = self.matrix[:, self.membership == ct].mean(axis=1)
+            avg_new[:, i] = self.matrix[self.membership == ct].mean(axis=0)
 
-        avg_atl = np.empty((L, len(cell_types)), np.float32)
+        avg_atl = np.empty((len(cell_types), L), np.float32)
         for i, ct in enumerate(cell_types):
-            avg_atl[i] = self.matrix[:, self.membership[:n_fixed] == ct].mean(axis=1)
+            avg_atl[:, i] = self.matrix[self.membership[:n_fixed] == ct].mean(axis=0)
 
         # Calculate distance matrix between new and old in the high-dimensional
         # feature-selected space
-        dmat = cdist(avg_new, avg_atl, metric=metric)
+        dmat = cdist(avg_new.T, avg_atl.T, metric=metric)
 
         # Pick the closest
         closest = np.argmin(dmat, axis=1)

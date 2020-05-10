@@ -190,7 +190,7 @@ class Subsample(object):
         return self.membership
 
     def _check_init_arguments(self):
-        # Custom atlas
+        # Check atlas
         at = self.atlas
 
         if isinstance(at, str):
@@ -206,67 +206,55 @@ class Subsample(object):
                         raise ValueError('List of atlases: format incorrect')
                 else:
                     raise ValueError('List of atlases: format incorrect')
-
         elif isinstance(at, dict) and ('atlas_name' in at) and \
                 ('cell_types' in at):
             pass
 
-        # Custom atlas
-        elif isinstance(at, dict):
-            if not isinstance(at, dict):
-                raise ValueError('atlas must be a dict')
-            if 'counts' not in at:
-                raise ValueError('atlas must have a "counts" key')
-            if 'cell_types' not in at:
-                raise ValueError('atlas must have a "cell_types" key')
+        elif isinstance(at, AnnData):
+            if 'Cell Type' not in at.obs:
+                raise AttributeError('atlas must have a "Cell Type" obs column')
 
-            # The counts can be pandas.DataFrame or anndata.AnnData
-            if not isinstance(at['counts'], pd.DataFrame):
-                if AnnData is None:
-                    raise ValueError('atlas["counts"] must be a DataFrame')
-                elif not isinstance(at['counts'], AnnData):
-                    raise ValueError('atlas["counts"] must be a DataFrame'
-                                     ' or AnnData object')
-
-                # AnnData uses features as columns, to transpose and convert
-                at['counts'] = at['counts'].T.to_df()
-
-            # even within AnnData, metadata colunms are pandas.DataFrame
-            if not isinstance(at['cell_types'], pd.Series):
-                raise ValueError('atlas["cell_types"] must be a pd.Series')
-            if at['counts'].shape[1] != at['cell_types'].shape[0]:
-                raise ValueError(
-                    'atlas counts and cell_types must have the same cells')
-            if (at['counts'].columns != at['cell_types'].index).any():
-                raise ValueError(
-                    'atlas counts and cell_types must have the same cells')
-
-        # Make sure new data is a dataframe
+        # Convert new data to anndata if needed
         nd = self.new_data
-        if not isinstance(nd, pd.DataFrame):
-            if AnnData is None:
-                raise ValueError('new data must be a DataFrame')
-            elif not isinstance(nd, AnnData):
-                raise ValueError('new_data must be a DataFrame'
-                                 ' or AnnData object')
-
-            # AnnData uses features as columns, to transpose and convert
-            self.new_data = nd = nd.T.to_df()
+        if isinstance(nd, AnnData):
+            pass
+        elif isinstance(nd, pd.DataFrame):
+            # AnnData uses features as columns, so transpose and convert
+            # (the assumption is that in the DataFrame convention, rows are
+            # features)
+            nd = AnnData(
+                X=nd.values.T,
+                obs={'CellID': nd.columns.values},
+                var={'Gene Name': nd.index.values},
+                )
+            self.new_data = nd
 
         # New data could be too small to to PCA
-        n_newgenes, n_newcells = self.new_data.shape
+        n_newcells, n_newgenes = self.new_data.shape
         if n_newgenes < self.n_pcs:
-            warnings.warn('The number of features in the new data is on the small end, northstar might give inaccurate results')
+            warnings.warn(
+                ('The number of features in the new data is lenn than ' +
+                 'the number of PCs, so northstar might give inaccurate ' +
+                 'results'))
 
         if n_newcells < self.n_pcs:
-            warnings.warn('The number of cells in the new data is on the small end, northstar might give inaccurate results')
+            warnings.warn(
+                ('The number of cells in the new data is lenn than ' +
+                 'the number of PCs, so northstar might give inaccurate ' +
+                 'results'))
 
         if min(n_newgenes, n_newcells) < self.n_pcs:
+            warnings.warn('Reducing the number of PCs to {:}'.format(
+                min(n_newgenes, n_newcells)))
             self.n_pcs = min(n_newgenes, n_newcells)
 
         # New data could be too small for knn
         if n_newcells < self.n_neighbors + 1:
-            warnings.warn('The number of cells in the new data is on the small end, reducing the number of graph neighbors')
+            warnings.warn(
+                ('The number of cells in the new data is less than the ' +
+                 'number of neighbors requested for the knn: reducing the ' +
+                 'number of graph neighbors to {:}'.format(
+                     max(1, n_newcells - 1)))
             self.n_neighbors = max(1, n_newcells - 1)
 
         nf1 = self.n_features_per_cell_type
@@ -283,19 +271,22 @@ class Subsample(object):
         L = len(self.features_ovl)
         if L == 0:
             raise ValueError(
-                'No overlapping features in atlas and new data, are gene names correct for this species?')
+                ('No overlapping features in atlas and new data, are gene ' +
+                 'names correct for this species?'))
         if L < 50:
             warnings.warn(
-                'Only {:} overlapping features found in atlas and new data'.format(L))
+                ('Only {:} overlapping features found in atlas and new ' +
+                 'data'.format(L)))
 
     def _check_feature_selection(self):
         L = len(self.features)
         if L == 0:
             raise ValueError(
-                'No features selected, check nortstar parameters')
+                ('No features survived selection, check nortstar parameters')
         if L < self.n_pcs:
             warnings.warn(
-                'Only {:} features selected, reducing PCA to those number of components'.format(L))
+                ('Only {0} features selected, reducing PCA to {0} ' +
+                 'components'.format(L)))
             self.n_pcs = L
 
     def fetch_atlas_if_needed(self):
@@ -326,8 +317,8 @@ class Subsample(object):
     def compute_feature_intersection(self):
         '''Calculate the intersection of features between atlas and new data'''
         # Intersect features
-        self.features_atlas = self.atlas['counts'].index.values
-        self.features_newdata = self.new_data.index.values
+        self.features_atlas = self.atlas.var_names
+        self.features_newdata = self.new_data.var_names
         self.features_ovl = np.intersect1d(
                 self.features_atlas,
                 self.features_newdata,
@@ -335,13 +326,13 @@ class Subsample(object):
 
     def prepare_feature_selection(self):
         # Cell names and types
-        self.cell_types_atlas = self.atlas['cell_types'].values
-        self.cell_names_atlas = self.atlas['counts'].columns.values
-        self.cell_names_newdata = self.new_data.columns.copy()
+        self.cell_types_atlas = self.atlas.obs['cell_types'].values
+        self.cell_names_atlas = self.atlas.obs_names
+        self.cell_names_newdata = self.new_data.obs_names
 
         # Numbers
-        self.n_atlas = self.atlas['counts'].shape[1]
-        self.n_newdata = self.new_data.shape[1]
+        self.n_atlas = self.atlas.shape[0]
+        self.n_newdata = self.new_data.shape[0]
         self.n_total = self.n_atlas + self.n_newdata
 
     def select_features(self):

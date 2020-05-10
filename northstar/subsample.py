@@ -356,12 +356,12 @@ class Subsample(object):
 
         # Atlas markers
         if len(cell_typesu) > 1:
-            matrix = self.atlas['counts'].values
+            matrix = self.atlas.X
             for au in cell_typesu:
                 icol1 = (cell_types == au).nonzero()[0]
                 icol2 = (cell_types != au).nonzero()[0]
-                ge1 = matrix[:, icol1].mean(axis=1)
-                ge2 = matrix[:, icol2].mean(axis=1)
+                ge1 = matrix[icol1].mean(axis=0)
+                ge2 = matrix[icol2].mean(axis=0)
                 fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
                 tmp = np.argsort(fold_change)[::-1]
                 ind_markers_atlas = []
@@ -378,9 +378,9 @@ class Subsample(object):
             if nf2 >= len(features_ovl):
                 features |= set(features_ovl)
             else:
-                matrix = self.new_data.values
-                nd_mean = matrix.mean(axis=1)
-                nd_var = matrix.var(axis=1)
+                matrix = self.new_data.X
+                nd_mean = matrix.mean(axis=0)
+                nd_var = matrix.var(axis=0)
                 fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
                 tmp = np.argsort(fano)[::-1]
                 ind_ovd_newdata = []
@@ -409,25 +409,25 @@ class Subsample(object):
         L = len(features)
         N = self.n_total
         N1 = self.n_atlas
-        matrix = np.empty((L, N), dtype=np.float32)
+        matrix = np.empty((N, L), dtype=np.float32)
 
         # Find the feature indices for atlas
         ind_features_atlas = pd.Series(
             np.arange(len(self.features_atlas)),
             index=self.features_atlas,
             ).loc[features].values
-        matrix[:, :N1] = self.atlas['counts'].values[ind_features_atlas]
+        matrix[:N1] = self.atlas.X[:, ind_features_atlas]
 
         # Find the feature indices for new data
         ind_features_newdata = pd.Series(
             np.arange(len(self.features_newdata)),
             index=self.features_newdata,
             ).loc[features].values
-        matrix[:, N1:] = self.new_data.values[ind_features_newdata]
+        matrix[N1:] = self.new_data.X[:, ind_features_newdata]
 
         # The normalization function also sets pseudocounts
         if self.normalize_counts:
-            matrix *= 1e6 / (matrix.sum(axis=0) + 0.1)
+            matrix *= 1e6 / (matrix.sum(axis=1) + 0.1)
 
         self.matrix = matrix
 
@@ -454,17 +454,20 @@ class Subsample(object):
         n_pcs = self.n_pcs
 
         # Test input arguments
-        L, N = matrix.shape
+        N, L = matrix.shape
         if n_fixed >= N:
-            raise ValueError('n_fixed larger or equal matrix number of columns')
+            raise ValueError(
+                'n_fixed larger or equal matrix number of columns')
         if n_pcs > min(L, N):
-            raise ValueError('n_pcs greater than smaller matrix dimension, those eigenvalues are zero')
+            raise ValueError(
+                ('n_pcs greater than smaller matrix dimension, the ' +
+                 'remaining eigenvalues will be zero'))
 
         # 0. take log
         matrix = np.log10(matrix + 0.1)
 
         # 1. whiten
-        Xnorm = ((matrix.T - matrix.mean(axis=1)) / matrix.std(axis=1, ddof=0)).T
+        Xnorm = (matrix - matrix.mean(axis=0)) / matrix.std(axis=0, ddof=0)
 
         # take care of non-varying components
         Xnorm[np.isnan(Xnorm)] = 0
@@ -472,7 +475,7 @@ class Subsample(object):
         # 2. PCA
         pca = PCA(n_components=n_pcs)
         # rvects columns are the right singular vectors
-        rvects = pca.fit_transform(Xnorm.T)
+        rvects = pca.fit_transform(Xnorm)
 
         self.pca_data = {
             'pcs': rvects,
@@ -497,7 +500,7 @@ class Subsample(object):
         threshold = self.threshold_neighborhood
         threshold_external = self.threshold_neighborhood_external
         rvects = self.pca_data['pcs']
-        L, N = matrix.shape
+        N, L = matrix.shape
         N1 = self.n_atlas
 
         # 1. calculate distance matrix

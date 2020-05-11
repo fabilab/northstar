@@ -7,13 +7,10 @@ __all__ = ['Averages']
 import warnings
 import numpy as np
 import pandas as pd
+from anndata import AnnData
 import leidenalg
 from .fetch_atlas import AtlasFetcher
 
-try:
-    from anndata import AnnData
-except ImportError:
-    AnnData = None
 
 
 class Averages(object):
@@ -39,12 +36,16 @@ class Averages(object):
         '''Prepare the model for cell annotation
 
         Args:
-            atlas (str, list of str, list of dict, or dict): cell atlas to use.
-            If a str, the corresponding cell atlas from:
+            atlas (str, list of str, list of dict, dict, or AnnData): cell
+             atlas to use. Generally there are two kind of choices:
+
+             The first possibility selects the corresponding cell atlas or
+             atlases from northstar's online list. The names of currently
+             available dataset is here:
 
              https://github.com/iosonofabio/atlas_averages/blob/master/table.tsv
 
-             is fetched (check the first column for atlas names). If a list of
+             (check the first column for atlas names). If a list of
              str, multiple atlases will be fetched and combined. Only features
              that are in all atlases will be kept. If you use this feature, be
              careful to not mix atlases from different species. If a list of
@@ -52,22 +53,27 @@ class Averages(object):
              types to fetch from each atlas. Each element of the list must be a
              dict with two key-value pairs: 'atlas_name' is the atlas name, and
              'cell_types' must be a list of cell types to retain. Example:
-             atlas=[{'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}] would
-             load the atlas Enge_2017 and only retain alpha cells. If a dict,
-             it can refer to two options. The first is a single atlas with a
-             specification to retain only certain cell types. The format is as
-             above, e.g. to select only alpha cells from Enge_2017 you can use:
-             atlas={'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}.
-             The second option describes a custom cell atlas. In this case, the
-             dict must have two entries, 'number_of_cells' and 'counts'.
-             'number_of_cells' is a pandas Series with the cell types as index
-             and the number of cells to use for each cell type as values.
-             'counts' is a pandas.DataFrame or an anndata.AnnData structure.
-             If a DataFrame, it must have features as rows and cell types as
-             columns; if an AnnData, it is reversed (AnnData uses a
-             different convention) and it must have the cell types as rows
-             (obs_names) and the features as columns (var_names). If an AnnData,
-             it will be converted into a DataFrame.
+             atlas=[{'atlas_name': 'Enge_2017', 'cell_types': ['alpha']}] would
+             load the atlas Enge_2017 and only retain alpha cells. You can also
+             use a dict to specify a single atlas and to retain only certain cell
+             types. The format is as above, e.g. to select only alpha cells
+             from Enge_2017 you can use:
+
+             atlas={'atlas_name': 'Enge_2017', 'cell_types': ['alpha']}.
+
+            The second possibility is to use a custom atlas (e.g. some
+             unpublished data). 'atlas' must be an AnnData object with cell
+             type averages ("cells") as rows and genes as columns and one cell
+             metadata column 'Number of Cells' describing the number of cells
+             for each cell type. In other words:
+
+                 adata.obs['Number of cells']
+
+             must exist, and:
+
+                adata.obs_names
+
+            must contain the known cell types.
 
             n_cells_per_type (None or int): if None, use the number of cells
              per type from the atlas. Else, fix it to this number for all types.
@@ -182,8 +188,9 @@ class Averages(object):
         return self.membership
 
     def _check_init_arguments(self):
-        # Custom atlas
+        # Check atlas
         at = self.atlas
+
         if isinstance(at, str):
             pass
         elif isinstance(at, list) or isinstance(at, tuple):
@@ -202,64 +209,55 @@ class Averages(object):
                 ('cell_types' in at):
             pass
 
-        # Custom atlas
-        elif isinstance(at, dict):
-            if 'counts' not in at:
-                raise ValueError('custom atlas must have a "counts" key')
-            if 'number_of_cells' not in at:
-                raise ValueError('custom atlas must have a "number_of_cells"'
-                                 ' key')
+        elif isinstance(at, AnnData):
+            if 'Number of Cells' not in at.obs:
+                raise AttributeError('atlas must have a "Number of Cells" obs column')
 
-            # The counts can be pandas.DataFrame or anndata.AnnData
-            if not isinstance(at['counts'], pd.DataFrame):
-                if AnnData is None:
-                    raise ValueError('atlas["counts"] must be a DataFrame')
-                elif not isinstance(at['counts'], AnnData):
-                    raise ValueError('atlas["counts"] must be a DataFrame'
-                                     ' or AnnData object')
-
-                # AnnData uses features as columns, to transpose and convert
-                at['counts'] = at['counts'].T.to_df()
-
-            # even within AnnData, metadata colunms are pandas.DataFrame
-            if not isinstance(at['number_of_cells'], pd.Series):
-                raise ValueError('atlas["number_of_cells"] must be a series')
-            if at['counts'].shape[1] != at['number_of_cells'].shape[0]:
-                raise ValueError(
-                    'atlas counts and number_of_cells must have the same cells')
-            if (at['counts'].columns != at['number_of_cells'].index).any():
-                raise ValueError(
-                    'atlas counts and number_of_cells must have the same cells')
         else:
-            raise ValueError(
-                    'atlas must be a str, list of str, list of dict, or dict')
+            raise ValueError('Atlas not formatted correctly')
 
-        # Make sure new data is a dataframe
+
+        # Convert new data to anndata if needed
         nd = self.new_data
+        if isinstance(nd, AnnData):
+            pass
         if not isinstance(nd, pd.DataFrame):
-            if AnnData is None:
-                raise ValueError('new data must be a DataFrame')
-            elif not isinstance(nd, AnnData):
-                raise ValueError('new_data must be a DataFrame'
-                                 ' or AnnData object')
+            # AnnData uses features as columns, so transpose and convert
+            # (the assumption is that in the DataFrame convention, rows are
+            # features)
+            nd = AnnData(
+                X=nd.values.T,
+                obs={'CellID': nd.columns.values},
+                var={'Gene Name': nd.index.values},
+                )
+            self.new_data = nd
 
-            # AnnData uses features as columns, to transpose and convert
-            self.new_data = nd = nd.T.to_df()
-
-        # New data could be too small to to PCA
-        n_newgenes, n_newcells = self.new_data.shape
+        # New data could be too small to do PCA
+        n_newcells, n_newgenes = self.new_data.shape
         if n_newgenes < self.n_pcs:
-            warnings.warn('The number of features in the new data is on the small end, northstar might give inaccurate results')
+            warnings.warn(
+                ('The number of features in the new data is lenn than ' +
+                 'the number of PCs, so northstar might give inaccurate ' +
+                 'results'))
 
         if n_newcells < self.n_pcs:
-            warnings.warn('The number of cells in the new data is on the small end, northstar might give inaccurate results')
+            warnings.warn(
+                ('The number of cells in the new data is lenn than ' +
+                 'the number of PCs, so northstar might give inaccurate ' +
+                 'results'))
 
         if min(n_newgenes, n_newcells) < self.n_pcs:
+            warnings.warn('Reducing the number of PCs to {:}'.format(
+                min(n_newgenes, n_newcells)))
             self.n_pcs = min(n_newgenes, n_newcells)
 
         # New data could be too small for knn
         if n_newcells < self.n_neighbors + 1:
-            warnings.warn('The number of cells in the new data is on the small end, reducing the number of graph neighbors')
+            warnings.warn(
+                ('The number of cells in the new data is less than the ' +
+                 'number of neighbors requested for the knn: reducing the ' +
+                 'number of graph neighbors to {:}'.format(
+                     max(1, n_newcells - 1)))
             self.n_neighbors = max(1, n_newcells - 1)
 
         nf1 = self.n_features_per_cell_type
@@ -276,19 +274,22 @@ class Averages(object):
         L = len(self.features_ovl)
         if L == 0:
             raise ValueError(
-                'No overlapping features in atlas and new data, are gene names correct for this species?')
+                ('No overlapping features in atlas and new data, are gene ' +
+                 'names correct for this species?'))
         if L < 50:
             warnings.warn(
-                'Only {:} overlapping features found in atlas and new data'.format(L))
+                ('Only {:} overlapping features found in atlas and new ' +
+                 'data'.format(L)))
 
     def _check_feature_selection(self):
         L = len(self.features)
         if L == 0:
             raise ValueError(
-                'No features selected, check nortstar parameters')
+                ('No features survived selection, check nortstar parameters')
         if L < self.n_pcs:
             warnings.warn(
-                'Only {:} features selected, reducing PCA to those number of components'.format(L))
+                ('Only {0} features selected, reducing PCA to {0} ' +
+                 'components'.format(L)))
             self.n_pcs = L
 
     def fetch_atlas_if_needed(self):
@@ -328,15 +329,15 @@ class Averages(object):
 
     def prepare_feature_selection(self):
         # Cell names and types
-        self.cell_types_atlas = self.atlas['counts'].columns.values
-        self.cell_names_atlas = self.atlas['counts'].columns.values
-        self.cell_names_newdata = self.new_data.columns.copy()
+        self.cell_types_atlas = self.atlas.obs_names
+        self.cell_names_atlas = self.atlas.obs_names
+        self.cell_names_newdata = self.new_data.obs_names
         ctypes_ext = []
         cnames_ext = []
         if self.n_cells_per_type is None:
-            ncells_per_ct = self.atlas['number_of_cells'].values.astype(np.int64)
+            ncells_per_ct = self.atlas.obs['Number of Cells'].astype(np.int64)
         else:
-            ncells_per_ct = [self.n_cells_per_type] * self.atlas['counts'].shape[1]
+            ncells_per_ct = [self.n_cells_per_type] * self.atlas.shape[0]
         for i, ni in enumerate(ncells_per_ct):
             for ii in range(ni):
                 ctypes_ext.append(self.cell_types_atlas[i])
@@ -345,8 +346,8 @@ class Averages(object):
         self.cell_names_atlas_extended = cnames_ext
 
         # Numbers
-        self.n_atlas = self.atlas['counts'].shape[1]
-        self.n_newdata = self.new_data.shape[1]
+        self.n_atlas = self.atlas.shape[0]
+        self.n_newdata = self.new_data.shape[0]
         self.n_total = self.n_atlas + self.n_newdata
         self.n_atlas_extended = len(self.cell_names_atlas_extended)
         self.n_total_extended = self.n_atlas_extended + self.n_newdata
@@ -356,7 +357,8 @@ class Averages(object):
         if self.n_cells_per_type is not None:
             self.sizes[:self.n_atlas] *= self.n_cells_per_type
         else:
-            self.sizes[:self.n_atlas] = self.atlas['number_of_cells'].values.astype(np.float32)
+            self.sizes[:self.n_atlas] = self.atlas.obs['Number of Cells'].astype(
+                    np.float32)
 
     def select_features(self):
         '''Select features among the overlap of atlas and new data
@@ -378,10 +380,10 @@ class Averages(object):
 
         # Atlas markers
         if (nf1 > 0) and (n_atlas > 1):
-            matrix = self.atlas['counts'].values
+            matrix = self.atlas.X.values
             for icol in range(n_atlas):
-                ge1 = matrix[:, icol]
-                ge2 = (matrix.sum(axis=1) - ge1) / (n_atlas - 1)
+                ge1 = matrix[icol]
+                ge2 = (matrix.sum(axis=0) - ge1) / (n_atlas - 1)
                 fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
                 tmp = np.argsort(fold_change)[::-1]
                 ind_markers_atlas = []
@@ -398,9 +400,9 @@ class Averages(object):
             if nf2 >= len(features_ovl):
                 features |= set(features_ovl)
             else:
-                matrix = self.new_data.values
-                nd_mean = matrix.mean(axis=1)
-                nd_var = matrix.var(axis=1)
+                matrix = self.new_data.X
+                nd_mean = matrix.mean(axis=0)
+                nd_var = matrix.var(axis=0)
                 fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
                 tmp = np.argsort(fano)[::-1]
                 ind_ovd_newdata = []
@@ -428,25 +430,27 @@ class Averages(object):
         L = len(features)
         N1 = self.n_atlas
         N = self.n_total
-        matrix = np.empty((L, N), dtype=np.float32)
+
+        # This is the largest memory footprint of northstar
+        matrix = np.empty((N, L), dtype=np.float32)
 
         # Find the feature indices for atlas
         ind_features_atlas = pd.Series(
             np.arange(len(self.features_atlas)),
             index=self.features_atlas,
             ).loc[features].values
-        matrix[:, :N1] = self.atlas['counts'].values[ind_features_atlas]
+        matrix[:N1] = self.atlas.X[:, ind_features_atlas]
 
         # Find the feature indices for new data
         ind_features_newdata = pd.Series(
             np.arange(len(self.features_newdata)),
             index=self.features_newdata,
             ).loc[features].values
-        matrix[:, N1:] = self.new_data.values[ind_features_newdata]
+        matrix[N1:] = self.new_data.X[:, ind_features_newdata]
 
         # The normalization function also sets pseudocounts
         if self.normalize_counts:
-            matrix *= 1e6 / (matrix.sum(axis=0) + 0.1)
+            matrix *= 1e6 / (matrix.sum(axis=1) + 0.1)
 
         self.matrix = matrix
 
@@ -473,7 +477,7 @@ class Averages(object):
         n_pcs = self.n_pcs
 
         # Test input arguments
-        L, N = matrix.shape
+        N, L = matrix.shape
         if len(sizes) != N:
             raise ValueError('Matrix and sizes dimensions do not match')
         if n_atlas >= N:
@@ -487,17 +491,17 @@ class Averages(object):
         # 1. standardize
         weights = 1.0 * sizes / sizes.sum()
         mean_w = matrix @ weights
-        var_w = ((matrix.T - mean_w)**2).T @ weights
+        var_w = ((matrix - mean_w)**2) @ weights
         std_w = np.sqrt(var_w)
-        Xnorm = ((matrix.T - mean_w) / std_w).T
+        Xnorm = (matrix - mean_w) / std_w
 
         # take care of non-varying components
         Xnorm[np.isnan(Xnorm)] = 0
 
         # 2. weighted covariance
         # This matrix has size L x L. Typically L ~ 500 << N, so the covariance
-        # L x L is much smaller than N x N, hence it's fine
-        cov_w = np.cov(Xnorm, fweights=sizes)
+        # L x L is much smaller than N x N
+        cov_w = np.cov(Xnorm.T, fweights=sizes)
 
         # 3. PCA
         # rvects columns are the right singular vectors
@@ -640,7 +644,7 @@ class Averages(object):
         resolution_parameter = self.resolution_parameter
         g = self.graph
 
-        L, N = matrix.shape
+        N, L = matrix.shape
         n_fixede = int(np.sum(sizes[:n_atlas]))
         Ne = int(np.sum(sizes))
 

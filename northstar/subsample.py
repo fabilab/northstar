@@ -36,11 +36,11 @@ class Subsample(object):
         '''Prepare the model for cell annotation
 
         Args:
-            atlas (str, list of str, list of dict, or dict): cell atlas to use.
-             Generally there are two possibilities.
+            atlas (str, list of str, list of dict, dict, or AnnData): cell
+             atlas to use. Generally there are two kind of choices:
 
              The first possibility selects the corresponding cell atlas or
-             atlases from northstar's online resource. The names of currently
+             atlases from northstar's online list. The names of currently
              available dataset is here:
 
              https://github.com/iosonofabio/atlas_averages/blob/master/table.tsv
@@ -53,25 +53,22 @@ class Subsample(object):
              types to fetch from each atlas. Each element of the list must be a
              dict with two key-value pairs: 'atlas_name' is the atlas name, and
              'cell_types' must be a list of cell types to retain. Example:
-             atlas=[{'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}] would
+             atlas=[{'atlas_name': 'Enge_2017', 'cell_types': ['alpha']}] would
              load the atlas Enge_2017 and only retain alpha cells. You can also
              use a dict to specify a single atlas and to retain only certain cell
              types. The format is as above, e.g. to select only alpha cells
              from Enge_2017 you can use:
 
-             atlas={'atlas_name': 'Enge_2017', 'cell_tpes': ['alpha']}.
+             atlas={'atlas_name': 'Enge_2017', 'cell_types': ['alpha']}.
 
              The second possibility is to use a custom atlas (e.g. some
-             unpublished data). 'atlas' must be a dict with two entries,
-             'cell_types' and 'counts'.
-             - 'cell_types' is a pandas Series with the cell names as index and
-             the cell types to use for each cell as values.
-             - 'counts' is a pandas.DataFrame or an anndata.AnnData structure.
-             If a DataFrame, it must have features as rows and cell names as
-             columns; if an AnnData, it is reversed (AnnData uses a
-             different convention) and it must have the cell types as rows
-             (obs_names) and the features as columns (var_names). If an AnnData,
-             it will be converted into a DataFrame.
+             unpublished data). 'atlas' must be an AnnData object with cells as
+             rows and genes as columns and one cell metadata column 'Cell Type'
+             describing the cell type. In other words:
+
+                 adata.obs['Cell Type']
+
+             must exist.
 
             n_features_per_cell_type (int): number of features marking each
              fixed column (atlas cell type).
@@ -214,6 +211,9 @@ class Subsample(object):
             if 'Cell Type' not in at.obs:
                 raise AttributeError('atlas must have a "Cell Type" obs column')
 
+        else:
+            raise ValueError('Atlas not formatted correctly')
+
         # Convert new data to anndata if needed
         nd = self.new_data
         if isinstance(nd, AnnData):
@@ -229,7 +229,7 @@ class Subsample(object):
                 )
             self.new_data = nd
 
-        # New data could be too small to to PCA
+        # New data could be too small to do PCA
         n_newcells, n_newgenes = self.new_data.shape
         if n_newgenes < self.n_pcs:
             warnings.warn(
@@ -409,6 +409,8 @@ class Subsample(object):
         L = len(features)
         N = self.n_total
         N1 = self.n_atlas
+
+        # This is the largest memory footprint of northstar
         matrix = np.empty((N, L), dtype=np.float32)
 
         # Find the feature indices for atlas

@@ -222,16 +222,22 @@ class Averages(object):
         nd = self.new_data
         if isinstance(nd, AnnData):
             pass
-        if not isinstance(nd, pd.DataFrame):
+        elif isinstance(nd, pd.DataFrame):
             # AnnData uses features as columns, so transpose and convert
             # (the assumption is that in the DataFrame convention, rows are
             # features)
             nd = AnnData(
                 X=nd.values.T,
                 obs={'CellID': nd.columns.values},
-                var={'Gene Name': nd.index.values},
+                var={'GeneName': nd.index.values},
                 )
+            nd.obs_names = nd.obs['CellID']
+            nd.var_names = nd.var['GeneName']
             self.new_data = nd
+        else:
+            raise ValueError(
+                'New data must be an AnnData object or pd.DataFrame',
+                )
 
         # New data could be too small to do PCA
         n_newcells, n_newgenes = self.new_data.shape
@@ -322,8 +328,8 @@ class Averages(object):
     def compute_feature_intersection(self):
         '''Calculate the intersection of features between atlas and new data'''
         # Intersect features
-        self.features_atlas = self.atlas['counts'].index.values
-        self.features_newdata = self.new_data.index.values
+        self.features_atlas = self.atlas.var_names.values
+        self.features_newdata = self.new_data.var_names.values
         self.features_ovl = np.intersect1d(
                 self.features_atlas,
                 self.features_newdata,
@@ -382,7 +388,7 @@ class Averages(object):
 
         # Atlas markers
         if (nf1 > 0) and (n_atlas > 1):
-            matrix = self.atlas.X.values
+            matrix = self.atlas.X
             for icol in range(n_atlas):
                 ge1 = matrix[icol]
                 ge2 = (matrix.sum(axis=0) - ge1) / (n_atlas - 1)
@@ -452,7 +458,7 @@ class Averages(object):
 
         # The normalization function also sets pseudocounts
         if self.normalize_counts:
-            matrix *= 1e6 / (matrix.sum(axis=1) + 0.1)
+            matrix = 1e6 * (matrix.T / (matrix.sum(axis=1) + 0.1)).T
 
         self.matrix = matrix
 
@@ -492,8 +498,8 @@ class Averages(object):
 
         # 1. standardize
         weights = 1.0 * sizes / sizes.sum()
-        mean_w = matrix @ weights
-        var_w = ((matrix - mean_w)**2) @ weights
+        mean_w = weights @ matrix
+        var_w = weights @ ((matrix - mean_w)**2)
         std_w = np.sqrt(var_w)
         Xnorm = (matrix - mean_w) / std_w
 
@@ -516,7 +522,7 @@ class Averages(object):
         # calculate right singular vectors given the left singular vectors
         # NOTE: this is true even if we truncated the PCA via n_pcs << L
         # rvects columns are the right singular vectors
-        rvects = (lvects @ Xnorm).T
+        rvects = (lvects @ Xnorm.T).T
 
         # 4. expand embedded vectors to account for sizes
         # NOTE: this could be done by carefully tracking multiplicities

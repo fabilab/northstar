@@ -127,8 +127,8 @@ def test_run_mock_cells():
             aname, kind='average')
 
     ind = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 4, 5]
-    matrix = atlas['counts'].iloc[:, ind]
-    cell_types = atlas['counts'].columns.values[ind]
+    matrix = atlas[ind]
+    cell_types = atlas.obs_names.values[ind]
 
     sa = Averages(
             aname,
@@ -147,8 +147,8 @@ def test_run_within_atlas():
     ind = [
         0, 2, 5, 8, 10, 15, 20, 25, 28, 30, 35, 38,
         40, 45, 50, 60, 70, 75, 80, 90]
-    matrix = atlas['counts'].iloc[:, ind]
-    cell_types = atlas['cell_types'].values[ind]
+    matrix = atlas[ind]
+    cell_types = atlas.obs['CellType'].values[ind]
 
     sa = Averages(
             aname,

@@ -13,21 +13,6 @@ def test_subsample_Darmanis_2015():
     af = AtlasFetcher()
     atlas = af.fetch_atlas('Darmanis_2015', kind='subsample')
 
-    X = atlas['counts'].T.values
-    obs = {
-        'CellID': atlas['counts'].columns.values,
-        'Cell Type': atlas['cell_types'].values,
-        }
-    var = {
-        'GeneName': atlas['counts'].index.values,
-        }
-
-    atlas = anndata.AnnData(
-            X=X,
-            obs=obs,
-            var=var,
-            )
-
     ss = subsample_atlas(
             atlas,
             n_cells=5,

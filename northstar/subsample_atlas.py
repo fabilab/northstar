@@ -11,7 +11,7 @@ import pandas as pd
 
 def subsample_atlas(
         atlas,
-        cell_type_column='Cell Type',
+        cell_type_column='CellType',
         n_cells=20,
         ):
     '''Subsample atlas across cell types

@@ -257,7 +257,8 @@ class Averages(object):
                 ('The number of cells in the new data is less than the ' +
                  'number of neighbors requested for the knn: reducing the ' +
                  'number of graph neighbors to {:}'.format(
-                     max(1, n_newcells - 1)))
+                     max(1, n_newcells - 1)),
+                 ))
             self.n_neighbors = max(1, n_newcells - 1)
 
         nf1 = self.n_features_per_cell_type

@@ -11,24 +11,8 @@ def test_run_within_atlas():
     aname = 'Darmanis_2015'
     atlas = AtlasFetcher().fetch_atlas(
             aname, kind='subsample')
-    matrix = atlas['counts']
-    cell_types = atlas['cell_types'].values
-
-    sa = Subsample(aname)
-    sa.fit(matrix)
-
-    # Nobody's perfect
-    assert((cell_types == sa.membership).mean() >= 0.9)
-
-
-def test_run_within_atlas_means():
-    aname = 'Darmanis_2015'
-    atlas = AtlasFetcher().fetch_atlas(
-            aname, kind='average')
-
-    ind = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 4, 5, 6, 0]
-    matrix = atlas['counts'].iloc[:, ind]
-    cell_types = atlas['counts'].columns.values[ind]
+    matrix = atlas.copy()
+    cell_types = atlas.obs['CellType'].values
 
     sa = Subsample(aname)
     sa.fit(matrix)
@@ -40,8 +24,8 @@ def test_run_within_atlas_means():
 def test_run_across_atlas():
     atlas = AtlasFetcher().fetch_atlas(
             'Enge_2017', kind='subsample')
-    matrix = atlas['counts']
-    cell_types = atlas['cell_types'].values
+    matrix = atlas.copy()
+    cell_types = atlas.obs['CellType'].values
 
     sa = Subsample(
         'Baron_2016',

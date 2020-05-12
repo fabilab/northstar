@@ -327,7 +327,7 @@ class Subsample(object):
 
     def prepare_feature_selection(self):
         # Cell names and types
-        self.cell_types_atlas = self.atlas.obs['cell_types'].values
+        self.cell_types_atlas = self.atlas.obs['CellType'].values
         self.cell_names_atlas = self.atlas.obs_names
         self.cell_names_newdata = self.new_data.obs_names
 
@@ -430,7 +430,7 @@ class Subsample(object):
 
         # The normalization function also sets pseudocounts
         if self.normalize_counts:
-            matrix *= 1e6 / (matrix.sum(axis=1) + 0.1)
+            matrix = 1e6 * (matrix.T / (matrix.sum(axis=1) + 0.1)).T
 
         self.matrix = matrix
 

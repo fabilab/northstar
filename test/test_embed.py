@@ -15,7 +15,7 @@ def test_embed_averages():
     ind = [
         0, 2, 5, 8, 10, 15, 20, 25, 28, 30, 35, 38,
         40, 45, 50, 60, 70, 75, 80, 90]
-    matrix = atlas['counts'].iloc[:, ind]
+    matrix = atlas[ind].copy()
 
     sa = Averages(
             aname,
@@ -36,7 +36,7 @@ def test_embed_subsample():
     ind = [
         0, 2, 5, 8, 10, 15, 20, 25, 28, 30, 35, 38,
         40, 45, 50, 60, 70, 75, 80, 90]
-    matrix = atlas['counts'].iloc[:, ind]
+    matrix = atlas[ind].copy()
 
     sa = Subsample(
             aname,

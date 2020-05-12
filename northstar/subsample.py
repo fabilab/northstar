@@ -63,10 +63,10 @@ class Subsample(object):
 
              The second possibility is to use a custom atlas (e.g. some
              unpublished data). 'atlas' must be an AnnData object with cells as
-             rows and genes as columns and one cell metadata column 'Cell Type'
+             rows and genes as columns and one cell metadata column 'CellType'
              describing the cell type. In other words:
 
-                 adata.obs['Cell Type']
+                 adata.obs['CellType']
 
              must exist.
 
@@ -208,8 +208,8 @@ class Subsample(object):
             pass
 
         elif isinstance(at, AnnData):
-            if 'Cell Type' not in at.obs:
-                raise AttributeError('atlas must have a "Cell Type" obs column')
+            if 'CellType' not in at.obs:
+                raise AttributeError('atlas must have a "CellType" obs column')
 
         else:
             raise ValueError('Atlas not formatted correctly')
@@ -283,7 +283,7 @@ class Subsample(object):
         L = len(self.features)
         if L == 0:
             raise ValueError(
-                ('No features survived selection, check nortstar parameters')
+                ('No features survived selection, check nortstar parameters'))
         if L < self.n_pcs:
             warnings.warn(
                 ('Only {0} features selected, reducing PCA to {0} ' +

@@ -5,6 +5,7 @@
 #             https://iosonofabio.github.io/atlas_averages/
 import numpy as np
 import pandas as pd
+from anndata import AnnData
 from northstar import AtlasFetcher
 
 
@@ -28,35 +29,32 @@ def test_list_atlases():
 def test_fetch_Darmanis_2015():
     af = AtlasFetcher()
     atlas = af.fetch_atlas('Darmanis_2015')
-    assert(isinstance(atlas, dict))
-    assert('counts' in atlas)
-    assert('number_of_cells' in atlas)
+    assert(isinstance(atlas, AnnData))
+    assert('NumberOfCells' in atlas.obs.columns)
 
 
 def test_fetch_Enge_2017():
     af = AtlasFetcher()
     atlas = af.fetch_atlas('Enge_2017')
-    assert(isinstance(atlas, dict))
-    assert('counts' in atlas)
-    assert('number_of_cells' in atlas)
-    counts = atlas['counts'].loc[['INS', 'GCG', 'PPY']]
-    assert(counts.loc['INS', 'beta'] > counts.loc['INS', 'acinar'])
+    assert(isinstance(atlas, AnnData))
+    assert('NumberOfCells' in atlas.obs.columns)
+
+    counts = atlas[:, ['INS', 'GCG', 'PPY']]
+    assert(counts['beta', 'INS'].X > counts['acinar', 'INS'].X)
 
 
 def test_fetch_multiple():
     af = AtlasFetcher()
     atlas = af.fetch_multiple_atlases(['Darmanis_2015', 'Enge_2017'])
-    assert(isinstance(atlas, dict))
-    assert('counts' in atlas)
-    assert('number_of_cells' in atlas)
+    assert(isinstance(atlas, AnnData))
+    assert('NumberOfCells' in atlas.obs.columns)
 
 
 def test_fetch_Darmanis_2015_subsample():
     af = AtlasFetcher()
     atlas = af.fetch_atlas('Darmanis_2015', kind='subsample')
-    assert(isinstance(atlas, dict))
-    assert('counts' in atlas)
-    assert('cell_types' in atlas)
+    assert(isinstance(atlas, AnnData))
+    assert('CellType' in atlas.obs.columns)
 
 
 def test_fetch_multiple_subsample():
@@ -64,6 +62,6 @@ def test_fetch_multiple_subsample():
     atlas = af.fetch_multiple_atlases(
             ['Darmanis_2015', 'Enge_2017'],
             kind='subsample')
-    assert(isinstance(atlas, dict))
-    assert('counts' in atlas)
-    assert('cell_types' in atlas)
+    assert(isinstance(atlas, AnnData))
+    assert('CellType' in atlas.obs.columns)
+    assert('Dataset' in atlas.obs.columns)

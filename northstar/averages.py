@@ -64,10 +64,10 @@ class Averages(object):
             The second possibility is to use a custom atlas (e.g. some
              unpublished data). 'atlas' must be an AnnData object with cell
              type averages ("cells") as rows and genes as columns and one cell
-             metadata column 'Number of Cells' describing the number of cells
+             metadata column 'NumberOfCells' describing the number of cells
              for each cell type. In other words:
 
-                 adata.obs['Number of cells']
+                 adata.obs['NumberOfCells']
 
              must exist, and:
 
@@ -210,8 +210,9 @@ class Averages(object):
             pass
 
         elif isinstance(at, AnnData):
-            if 'Number of Cells' not in at.obs:
-                raise AttributeError('atlas must have a "Number of Cells" obs column')
+            if 'NumberOfCells' not in at.obs:
+                raise AttributeError(
+                        'atlas must have a "NumberOfCells" obs column')
 
         else:
             raise ValueError('Atlas not formatted correctly')
@@ -286,7 +287,7 @@ class Averages(object):
         L = len(self.features)
         if L == 0:
             raise ValueError(
-                ('No features survived selection, check nortstar parameters')
+                ('No features survived selection, check nortstar parameters'))
         if L < self.n_pcs:
             warnings.warn(
                 ('Only {0} features selected, reducing PCA to {0} ' +
@@ -336,7 +337,7 @@ class Averages(object):
         ctypes_ext = []
         cnames_ext = []
         if self.n_cells_per_type is None:
-            ncells_per_ct = self.atlas.obs['Number of Cells'].astype(np.int64)
+            ncells_per_ct = self.atlas.obs['NumberOfCells'].astype(np.int64)
         else:
             ncells_per_ct = [self.n_cells_per_type] * self.atlas.shape[0]
         for i, ni in enumerate(ncells_per_ct):
@@ -358,7 +359,7 @@ class Averages(object):
         if self.n_cells_per_type is not None:
             self.sizes[:self.n_atlas] *= self.n_cells_per_type
         else:
-            self.sizes[:self.n_atlas] = self.atlas.obs['Number of Cells'].astype(
+            self.sizes[:self.n_atlas] = self.atlas.obs['NumberOfCells'].astype(
                     np.float32)
 
     def select_features(self):

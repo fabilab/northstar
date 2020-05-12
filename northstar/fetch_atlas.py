@@ -10,6 +10,7 @@ import pandas as pd
 import requests
 import io
 import loompy
+from anndata import AnnData
 import tempfile
 
 
@@ -80,49 +81,58 @@ class AtlasFetcher(object):
         finally:
             os.remove(path)
 
-        # Package into dataframes
+        # Package into anndata
         if kind == 'subsample':
-            counts = pd.DataFrame(
-                data=matrix,
-                index=features,
-                columns=cell_names,
-                )
             meta = pd.Series(
                 data=cell_types_all,
                 index=cell_names,
                 )
 
             if cell_types is not None:
-                ind_ct = meta.isin(cell_types)
+                ind_ct = meta.isin(cell_types).values.nonzero()[0]
                 meta = meta.loc[ind_ct]
-                counts = counts.loc[:, ind_ct]
+                matrix = matrix[:, ind_ct]
 
-            res = {
-                'counts': counts,
-                'cell_types': meta,
-            }
-        else:
-            counts = pd.DataFrame(
-                data=matrix,
-                index=features,
-                columns=cell_types_all,
+            meta.name = 'CellType'
+            obs = meta.to_frame()
+            obs['CellID'] = obs.index
+            var = pd.Series(features, index=features)
+            var.name = 'GeneName'
+            var = var.to_frame()
+            adata = AnnData(
+                X=matrix.T,
+                obs=obs,
+                var=var,
                 )
+            adata.obs_names = adata.obs['CellID']
+            adata.var_names = adata.var['GeneName']
+
+        else:
             number_of_cells = pd.Series(
                 data=n_of_cells,
                 index=cell_types_all,
                 )
 
             if cell_types is not None:
-                ind_ct = number_of_cells.index.isin(cell_types)
+                ind_ct = number_of_cells.index.isin(cell_types).values.nonzero()[0]
                 number_of_cells = number_of_cells[ind_ct]
-                counts = counts.loc[:, ind_ct]
+                matrix = matrix[:, ind_ct]
 
-            res = {
-                'counts': counts,
-                'number_of_cells': number_of_cells,
-            }
+            number_of_cells.name = 'NumberOfCells'
+            obs = number_of_cells.to_frame()
+            obs['CellID'] = obs.index
+            var = pd.Series(features, index=features)
+            var.name = 'GeneName'
+            var = var.to_frame()
+            adata = AnnData(
+                X=matrix.T,
+                obs=obs,
+                var=var,
+                )
+            adata.obs_names = adata.obs['CellID']
+            adata.var_names = adata.var['GeneName']
 
-        return res
+        return adata
 
     def fetch_multiple_atlases(
             self,
@@ -183,10 +193,10 @@ class AtlasFetcher(object):
         cell_names_new = []
         features_list = []
         for at, d in ds.items():
-            cell_names.extend(d['counts'].columns.tolist())
+            cell_names.extend(d.obs_names.values.tolist())
             cell_names_new.extend(
-                    ['{:}_{:}'.format(at, x) for x in d['counts'].columns])
-            features_list.append(d['counts'].index.values)
+                    ['{:}_{:}'.format(at, x) for x in d.obs_names])
+            features_list.append(d.var_names.values)
         cell_names = np.array(cell_names)
         cell_names_new = np.array(cell_names_new)
 
@@ -212,48 +222,59 @@ class AtlasFetcher(object):
         i = 0
         features_set = set(features)
         for at, d in ds.items():
-            n = d['counts'].shape[1]
+            n = d.X.shape[0]
 
             # Pad missing features
             if (join == 'union') or ((join == 'keep_first') and (at != first_atlas)):
-                fea_this = set(d['counts'].index)
-                fea_missing = features_set - fea_this
-                for f in fea_missing:
-                    d['counts'].loc[f] = 0.0
+                fea_this = set(d.var_names)
+                fea_missing = list(features_set - fea_this)
+                fea_all = list(d.var_names) + fea_missing
+                submat = np.zeros((len(fea_all), n), np.float32)
+                submat[:len(fea_this)] = d.X.T
 
-            matrix[:, i: i+n] = d['counts'].loc[features].values
-            if kind == 'average':
-                n_cells_per_type[i: i+n] = d['number_of_cells'].values
+                idx = pd.Series(np.arange(len(fea_all)), index=fea_all)
+                idx = idx[features].values
+                submat = submat[idx]
             else:
-                cell_types.extend(d['cell_types'].values.tolist())
-            cell_dataset.extend([at] * d['counts'].shape[1])
+                submat = d[:, features].X.T
+
+            matrix[:, i: i+n] = submat
+
+            if kind == 'average':
+                n_cells_per_type[i: i+n] = d.obs['NumberOfCells'].values
+            else:
+                cell_types.extend(d.obs['CellType'].values.tolist())
+            cell_dataset.extend([at] * d.X.shape[0])
             i += n
 
-        counts = pd.DataFrame(
-            data=matrix,
-            index=features,
-            columns=cell_names_new,
-            )
         cell_dataset = pd.Series(
             data=cell_dataset,
             index=cell_names_new,
+            name='Dataset',
             )
 
-        res = {
-            'counts': counts,
-            'atlas': cell_dataset,
-            }
+        obs = cell_dataset.to_frame()
+        obs['CellID'] = obs.index
+        var = pd.Series(features, index=features, name='GeneName').to_frame()
+        adata = AnnData(
+            X=matrix.T,
+            obs=obs,
+            var=var,
+            )
+        adata.obs_names = cell_names_new
+        adata.var_names = features
+
         if kind == 'average':
             number_of_cells = pd.Series(
                 data=n_cells_per_type,
                 index=cell_names_new,
                 )
-            res['number_of_cells'] = number_of_cells
+            adata.obs['NumberOfCells'] = number_of_cells
         else:
             cell_types = pd.Series(
                 data=cell_types,
                 index=cell_names_new,
                 )
-            res['cell_types'] = cell_types
+            adata.obs['CellType'] = cell_types
 
-        return res
+        return adata

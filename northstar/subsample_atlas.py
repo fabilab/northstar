@@ -40,8 +40,6 @@ def subsample_atlas(
     else:
         n_celld = n_cells
 
-    print(n_celld)
-
     inds = []
     for ct, nc in n_celld.items():
         indi = (cell_type == ct).values.nonzero()[0]

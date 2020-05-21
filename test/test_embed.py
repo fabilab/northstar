@@ -25,7 +25,7 @@ def test_embed_averages():
             )
     sa.fit(matrix)
     vs = sa.embed()
-    assert(vs.shape[1] == 2)
+    assert(vs.shape[1] == 4)
 
 
 def test_embed_subsample():
@@ -46,7 +46,7 @@ def test_embed_subsample():
             )
     sa.fit(matrix)
     vs = sa.embed()
-    assert(vs.shape[1] == 2)
+    assert(vs.shape[1] == 4)
 
 
 if __name__ == '__main__':

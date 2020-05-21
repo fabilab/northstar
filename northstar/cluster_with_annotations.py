@@ -93,7 +93,6 @@ class ClusterWithAnnotations(object):
                 mb = aaun + (j - n_fixed)
             initial_membership.append(mb)
 
-        # Compute communities with semi-supervised Leiden
         if self.metric == 'cpm':
             partition = leidenalg.CPMVertexPartition(
                     g,

@@ -63,7 +63,7 @@ class ClusterWithAnnotations(object):
 
         self.graph = ig.Graph(n=n_nodes, edges=edges)
 
-    def cluster(self):
+    def fit(self):
         '''Compute communities from a matrix with fixed nodes
 
         Returns:
@@ -123,3 +123,8 @@ class ClusterWithAnnotations(object):
                 dtype='U{:}'.format(lstring))
         for i, ct in enumerate(aau):
             self.membership[self.membership == str(i)] = ct
+
+    def fit_transform(self):
+        '''Cluster graph and return memberships'''
+        self.fit()
+        return self.membership

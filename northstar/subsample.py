@@ -587,7 +587,7 @@ class Subsample(object):
                 resolution_parameter=self.resolution_parameter,
                 metric=self.clustering_metric,
             )
-        self.membership = clu.membership
+        self.membership = clu.fit_transform()
 
     def estimate_closest_atlas_cell_type(self):
         '''Estimate atlas cell type closest to each new cluster'''

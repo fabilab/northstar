@@ -87,7 +87,7 @@ class ClusterWithAnnotations(object):
         aaun = len(aau)
         initial_membership = []
         for j in range(N):
-            if j < self.n_atlas:
+            if j < n_fixed:
                 mb = aau.index(aa[j])
             else:
                 mb = aaun + (j - n_fixed)

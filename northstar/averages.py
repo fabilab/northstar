@@ -764,4 +764,7 @@ class Averages(object):
             index=index,
             columns=['Dimension 1', 'Dimension 2'],
             )
+        res['CellType'] = list(self.cell_types_atlas_extended) + list(self.membership)
+        res['Dataset'] = (['Atlas'] * self.n_atlas_extended) + (['New'] * self.n_newdata)
+
         return res

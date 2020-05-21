@@ -7,9 +7,11 @@ __all__ = ['Subsample']
 import warnings
 import numpy as np
 import pandas as pd
+import scipy as sp
 from anndata import AnnData
 import leidenalg
 from .fetch_atlas import AtlasFetcher
+from .cluster_with_annotations import ClusterWithAnnotations
 
 
 class Subsample(object):
@@ -318,8 +320,8 @@ class Subsample(object):
     def compute_feature_intersection(self):
         '''Calculate the intersection of features between atlas and new data'''
         # Intersect features
-        self.features_atlas = self.atlas.var_names
-        self.features_newdata = self.new_data.var_names
+        self.features_atlas = self.atlas.var_names.values
+        self.features_newdata = self.new_data.var_names.values
         self.features_ovl = np.intersect1d(
                 self.features_atlas,
                 self.features_newdata,
@@ -328,8 +330,8 @@ class Subsample(object):
     def prepare_feature_selection(self):
         # Cell names and types
         self.cell_types_atlas = self.atlas.obs['CellType'].values
-        self.cell_names_atlas = self.atlas.obs_names
-        self.cell_names_newdata = self.new_data.obs_names
+        self.cell_names_atlas = self.atlas.obs_names.values
+        self.cell_names_newdata = self.new_data.obs_names.values
 
         # Numbers
         self.n_atlas = self.atlas.shape[0]
@@ -356,13 +358,17 @@ class Subsample(object):
         features = set()
 
         # Atlas markers
+        self.features_atlas_selected = {}
         if len(cell_typesu) > 1:
             matrix = self.atlas.X
             for au in cell_typesu:
-                icol1 = (cell_types == au).nonzero()[0]
-                icol2 = (cell_types != au).nonzero()[0]
-                ge1 = matrix[icol1].mean(axis=0)
-                ge2 = matrix[icol2].mean(axis=0)
+                ic1 = (cell_types == au).nonzero()[0]
+                ic2 = (cell_types != au).nonzero()[0]
+                ge1 = np.asarray(matrix[ic1].mean(axis=0))
+                ge2 = np.asarray(matrix[ic2].mean(axis=0))
+                if sp.sparse.issparse(matrix):
+                    ge1 = ge1[0]
+                    ge2 = ge2[0]
                 fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
                 tmp = np.argsort(fold_change)[::-1]
                 ind_markers_atlas = []
@@ -372,7 +378,9 @@ class Subsample(object):
                     if len(ind_markers_atlas) == nf1:
                         break
                 # Add atlas markers
-                features |= set(features_atlas[ind_markers_atlas])
+                fa_au = set(features_atlas[ind_markers_atlas])
+                features |= fa_au
+                self.features_atlas_selected[au] = fa_au
 
         # Unbiased on new data
         if nf2 > 0:
@@ -380,8 +388,13 @@ class Subsample(object):
                 features |= set(features_ovl)
             else:
                 matrix = self.new_data.X
-                nd_mean = matrix.mean(axis=0)
-                nd_var = matrix.var(axis=0)
+                nd_mean = np.asarray(matrix.mean(axis=0))[0]
+                if sp.sparse.issparse(matrix):
+                    m2 = matrix.copy()
+                    m2.data **= 2
+                else:
+                    m2 = matrix ** 2
+                nd_var = np.asarray(m2.mean(axis=0))[0] - nd_mean**2
                 fano = (nd_var + 1e-10) / (nd_mean + 1e-10)
                 tmp = np.argsort(fano)[::-1]
                 ind_ovd_newdata = []
@@ -419,14 +432,14 @@ class Subsample(object):
             np.arange(len(self.features_atlas)),
             index=self.features_atlas,
             ).loc[features].values
-        matrix[:N1] = self.atlas.X[:, ind_features_atlas]
+        matrix[:N1] = self.atlas[:, ind_features_atlas].X.toarray()
 
         # Find the feature indices for new data
         ind_features_newdata = pd.Series(
             np.arange(len(self.features_newdata)),
             index=self.features_newdata,
             ).loc[features].values
-        matrix[N1:] = self.new_data.X[:, ind_features_newdata]
+        matrix[N1:] = self.new_data[:, ind_features_newdata].X.toarray()
 
         # The normalization function also sets pseudocounts
         if self.normalize_counts:
@@ -568,57 +581,13 @@ class Subsample(object):
             size N - n_fixed with the community/cluster membership of all
             columns except the first n_fixed ones.
         '''
-        opt = leidenalg.Optimiser()
-
-        matrix = self.matrix
-        aa = self.cell_types_atlas
-        n_fixed = self.n_atlas
-        clustering_metric = self.clustering_metric
-        resolution_parameter = self.resolution_parameter
-        g = self.graph
-
-        N, L = matrix.shape
-
-        # NOTE: initial membership is singletons except for atlas nodes, which
-        # get the membership they have.
-        aau = list(np.unique(aa))
-        aaun = len(aau)
-        initial_membership = []
-        for j in range(N):
-            if j < self.n_atlas:
-                mb = aau.index(aa[j])
-            else:
-                mb = aaun + (j - n_fixed)
-            initial_membership.append(mb)
-
-        # Compute communities with semi-supervised Leiden
-        if clustering_metric == 'cpm':
-            partition = leidenalg.CPMVertexPartition(
-                    g,
-                    resolution_parameter=resolution_parameter,
-                    initial_membership=initial_membership,
-                    )
-        elif clustering_metric == 'modularity':
-            partition = leidenalg.ModularityVertexPartition(
-                    g,
-                    resolution_parameter=resolution_parameter,
-                    initial_membership=initial_membership,
-                    )
-        else:
-            raise ValueError(
-                'clustering_metric not understood: {:}'.format(clustering_metric))
-
-        fixed_nodes = [int(i < n_fixed) for i in range(N)]
-        opt.optimise_partition(partition, fixed_nodes=fixed_nodes)
-        membership = partition.membership[n_fixed:]
-
-        # Convert the known cell types
-        lstring = len(max(self.cell_types_atlas, key=len))
-        self.membership = np.array(
-                [str(x) for x in membership],
-                dtype='U{:}'.format(lstring))
-        for i, ct in enumerate(aau):
-            self.membership[self.membership == str(i)] = ct
+        clu = ClusterWithAnnotations(
+                self.graph,
+                self.cell_types_atlas,
+                resolution_parameter=self.resolution_parameter,
+                metric=self.clustering_metric,
+            )
+        self.membership = clu.membership
 
     def estimate_closest_atlas_cell_type(self):
         '''Estimate atlas cell type closest to each new cluster'''
@@ -693,4 +662,7 @@ class Subsample(object):
             index=index,
             columns=columns,
             )
+        res['CellType'] = list(self.cell_types_atlas) + list(self.membership)
+        res['Dataset'] = (['Atlas'] * self.n_atlas) + (['New'] * self.n_newdata)
+
         return res

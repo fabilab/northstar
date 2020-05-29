@@ -2,11 +2,12 @@
 # author:     Fabio Zanini
 # date:       5/08/19
 # content:    Atlas subsampling
-__all__ = ['subsample_atlas']
+__all__ = ['subsample_atlas', 'average_atlas']
 
 import warnings
 import numpy as np
 import pandas as pd
+import anndata
 
 
 def subsample_atlas(
@@ -35,7 +36,8 @@ def subsample_atlas(
     cell_type = atlas.obs[cell_type_column]
 
     if np.isscalar(n_cells):
-        ct_unique = np.sort(cell_type.unique())
+        n_celld = cell_type.value_counts()
+        ct_unique = n_celld.index.values
         n_celld = {ct: n_cells for ct in ct_unique}
     else:
         n_celld = n_cells
@@ -51,3 +53,42 @@ def subsample_atlas(
     subsample = atlas[inds]
 
     return subsample
+
+
+def average_atlas(
+        atlas,
+        cell_type_column='CellType',
+        ):
+    '''Subsample atlas across cell types
+
+    Args:
+        atlas (anndata.Anndata): The dataset to subsample.
+        cell_type_column (str): The name of the metadata column to use for
+            subsampling. For each unique value of this column, a certain number
+            of cells will be samples (see `n_cells` argument).
+
+        Note: If the atlas contains fewer than the requested number of cells
+        for a cell type, all cell from that type will be sampled.
+    '''
+    cell_type = atlas.obs[cell_type_column]
+    n_celld = cell_type.value_counts()
+    ct_unique = list(n_celld.index)
+
+    matrix = np.zeros((len(ct_unique), atlas.shape[1]), np.float32)
+
+    for ict, ct in enumerate(ct_unique):
+        indi = (cell_type == ct).values.nonzero()[0]
+        mati = atlas.X[indi]
+        if not isinstance(mati, np.ndarray):
+            # Make a dense matrix, it's ok since there are not many types
+            mati = mati.toarray()
+        matrix[ict] = mati.mean(axis=0)
+
+    ave = anndata.AnnData(
+            X=matrix,
+            obs={'CellType': ct_unique},
+            )
+    ave.obs_names = ct_unique
+    ave.var = atlas.var
+
+    return ave

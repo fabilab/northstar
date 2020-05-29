@@ -6,7 +6,7 @@
 import numpy as np
 import pandas as pd
 import anndata
-from northstar import AtlasFetcher, subsample_atlas
+from northstar import AtlasFetcher, subsample_atlas, average_atlas
 
 
 def test_subsample_Darmanis_2015():
@@ -20,3 +20,15 @@ def test_subsample_Darmanis_2015():
 
     assert(isinstance(ss, anndata.AnnData))
     assert(ss.shape[0] == 40)
+
+
+def test_average_Darmanis_2015():
+    af = AtlasFetcher()
+    atlas = af.fetch_atlas('Darmanis_2015', kind='subsample')
+
+    ss = average_atlas(
+            atlas,
+            )
+
+    assert(isinstance(ss, anndata.AnnData))
+    assert(ss.shape[0] == 8)

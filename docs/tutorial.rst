@@ -9,7 +9,7 @@ Start off: atlas landmarks
 --------------------------------
 To transfer cell types from an atlas, you need a few cells or averages for each cell type
 within the atlas. We call these **atlas landmarks**. To keep things simple, in this tutorial
-we use precomputed landmarks from our `sister project <https://iosonofabio.github.io/atlas_landmarks/>`_.
+we use precomputed landmarks from our `sister project <https://northstaratlas.github.io/atlas_landmarks/>`_.
 Alternatively, you can use a custom atlas with its landmarks, see the :doc:`api` documentation of
 classes :class:`.Averages` and :class:`.Subsample` for that advanced usage.
 
@@ -22,14 +22,15 @@ Then we need to prepare the new single cell dataset to annotate. `northstar` acc
 
 1. a `pandas.DataFrame` with features/genes as rows and cells as columns.
    
-2. an `anndata.Anndata` object. Turns out `Anndata <https://anndata.readthedocs.io/en/stable/>`_
+2. an `anndata.Anndata` object. `Anndata <https://anndata.readthedocs.io/en/stable/>`_
    enforces the opposite convention, so the rows/observation_names must be the cells and the
    columns/variable_names must be the features/genes.
    
 .. note::
    `northstar` will take the intersection of your features names and the atlas features to
    assign cell types. Most atlases use gene names instead of EnsemblIDs or other names, so
-   make sure you do the same.
+   make sure you do the same. Remember human genes all ALL CAPS but mouse genes are
+   Capitalized only.
 
 For this tutorial, we will use pandas, so let's load the data e.g. from a CSV file:
 
@@ -52,6 +53,53 @@ If the dataset is in a `loom <http://loompy.org/>`_ file, we have to set the ind
           columns=ds.ca['CellID'],
           )
 
+Choose an atlas
+-------------------------------
+You can choose one of the available `atlas landmarks <https://northstaratlas.github.io/atlas_landmarks/>`_
+by name, e.g. `Darmanis_2015` is an early atlas of the human brain. `northstar` provides a class to explore our precompiled landmarks:
+
+.. code-block:: python
+
+   import northstar
+   af = northstar.AtlasFetcher()
+
+To list available atlases, just type:
+
+.. code-block:: python
+
+   af.list_atlases()
+
+and to download one of them, for instance as a subsample:
+
+.. code-block:: python
+
+   myatlas = af.fetch_atlas('Darmanis_2015', kind='subsample')
+
+You can also use a custom atlas. In that case, the atlas should be in an `AnnData` object (with rows as
+cells, genes as columns):
+
+- If you plan to use the `Subsample` class, the `AnnData` must have an `obs` column called
+`CellType` that describes for each cell its cell type.
+- If you plan to use the `Averages` class, the `AnnData` must have an `obs` column called `NumberOfCells` that is used to weight each cell type in the PCA. A value of 20 for all cell types is typical.
+
+Create an atlas from an existing dataset
+----------------------------------------
+`northstar` provides a function to subsample an existing annotated dataset to small cell numbers within each cell type, ready for further use with the `Subsample` class. You data must be in an `AnnData` object. You can call it by:
+
+.. code-block:: python
+
+   import northstar
+   myatlas = northstar.subsample_atlas(mydataset)
+
+The default metadata column used for subsampling each cell type evenly is `CellType`. If your dataset uses a different column, you can just set the `cell_type_column` argument in this function.
+
+Remember that the metadata column `CellType` is required anyway to use northstar. So you should set your cell type information into that column before or after subsampling:
+
+.. code-block:: python
+
+   myatlas.obs['CellType'] = myatlas.obs[my_other_column]
+
+
 Create an instance of northstar
 -------------------------------
 Let's assume you want to use the `.Subsample` class. You can create an instance of the class
@@ -68,12 +116,19 @@ as follows:
 
 Call the cell classifier
 ------------------------
-This is where the actual computations happen. A `northstar` instance can be called like a
-normal function:
+This is where the actual computations happen:
 
 .. code-block:: python
 
-  model()
+  model.fit()
+
+If you are curious about the steps within `northstar`, you can call in your Jupyter notebook or ipython console:
+
+.. code-block:: python
+
+  model.fit??
+
+and check out the steps one by one. Most users will not need this.
 
 Extract the result
 ------------------
@@ -84,6 +139,22 @@ The result of the cell type assignment can be extracted by the following command
   cell_types = model.membership
 
 This is a numpy array with the same length and order as your cells.
+
+.. note::
+   You can also run the classifier and exctract the result all at once using `model.fit_transform()`.
+
+
+Optional: embbedding
+--------------------------------
+Embeddings in two dimensions are useful to characterize single cell data. Northstar merges the atlas subsample/averages and the new dataset into the same PC space, and it's easy to get an embedding of your data "into" the atlas:
+
+.. code-block:: python
+
+  embedding = model.embed(method='umap')
+
+
+Available embeddings are `tsne`, `umap`, and `pca`.
+
 
 Optional: closest atlas cell type
 ---------------------------------
@@ -98,6 +169,30 @@ Here's the code to do that:
 The output is a `pandas.Series` with the novel clusters as index and the closest atlas cell
 types as values.
 
+Optional: custom data harmonization
+-----------------------------------
+`northstar` divides the cell classification task in two steps:
+
+1. Create a similarity graph that contains both the atlas and the new data
+2. Cluster that graph with awareness of the atlas annotations.
+
+For advanced users, it is possible to use a custom approach to step 1 and only use `northstar` for the atlas-aware clustering step 2. In this scenario, the similarity graph might be constructed using external data harmonization algorithms, such as scVI_, `BBKNN`_, Seurat3_, or whatever else.
+
+.. _scVI: https://scvi.readthedocs.io/
+.. _BBKNN: https://github.com/Teichlab/bbknn
+.. _Seurat3: https://satijalab.org/seurat/
+
+`northstar` offers the class `ClusterWithAnnotations` for this purpose:
+
+.. code-block:: python
+
+   import northstar
+   model = northstar.ClusterWithAnnotations(graph, cell_types_atlas)
+   cell_types_newcells = model.fit_transform()
+
+where `graph` must be a `igraph.Graph` instance from `python-igraph <https://igraph.org/>`_ or a dense or sparse boolean square matrix representing the adjacency matrix of the graph (i.e. it has nonzeros on on `graph[i , j]` if cell `i` and cell `j` are neighbors).
+
+
 Where to go from here
 ---------------------
 This concludes this short tutorial that showcases the main usage of `northstar`. You can
@@ -106,7 +201,7 @@ specify only certain cell types within one or multiple atlases, and use custom a
 
 We hope `northstar` helps you understand your tissue sample and do not hesitate to open an
 `issue on github <https://github.com/iosonofabio/northstar/issues>`_ if you have trouble.
-If `northstar` was useful for a publication, please consider citing us at `PAPER MISSING`.
+If `northstar` was useful for a publication, please consider citing us on `bioRxiv <https://www.biorxiv.org/content/10.1101/820928v2>`.
 
 .. toctree::
    :hidden:

@@ -57,34 +57,29 @@ Usage example
 
 .. code-block:: python
 
+  import anndata
   import northstar
   
   # Choose an atlas
   atlas_name = 'Darmanis_2015'
   
-  # Get a gene expression matrix of the new dataset (here a
-  # random matrix for simplicity)
-  n_cells = 200
-  n_genes = 50
-  new_dataset = pd.DataFrame(
-      data=np.random.rand(n_genes, n_cells).astype(np.float32),
-      index=<gene_list>,
-      columns=['cell_'+str(i+1) for i in range(n_cells)],
-      )
+  # Get an AnnData object with the new data to be annotated
+  new_dataset = anndata.read_loom('...')
+  # or any other format
   
   # Initialize northstar classes
-  sa = northstar.Averages(
-          atlas='Darmanis_2015',
+  model = northstar.Averages(
+          atlas='Darmanis_2015_nofetal',
           new_dataset,
           n_neighbors=5,
           n_pcs=10,
           )
   
   # Run the classifier
-  sa()
+  model.fit()
   
   # Get the cluster memberships for the new cells
-  membership = sa.membership
+  membership = model.membership
 
 
 Citation
@@ -110,6 +105,7 @@ Contents
    :glob:
 
    tutorial
+   examples
    api
 
 

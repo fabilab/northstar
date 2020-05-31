@@ -86,7 +86,7 @@ def average_atlas(
 
     ave = anndata.AnnData(
             X=matrix,
-            obs={'CellType': ct_unique},
+            obs={'CellType': ct_unique, 'NumberOfCells': n_celld.values},
             )
     ave.obs_names = ct_unique
     ave.var = atlas.var

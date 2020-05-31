@@ -297,8 +297,7 @@ class Averages(object):
                 ('No features survived selection, check nortstar parameters'))
         if L < self.n_pcs:
             warnings.warn(
-                ('Only {0} features selected, reducing PCA to {0} ' +
-                 'components'.format(L)))
+                ('Only {0} features selected, reducing PCA to {0} components'.format(L)))
             self.n_pcs = L
 
     def fetch_atlas_if_needed(self):

@@ -1,6 +1,6 @@
-Mapping GBM cells onto human brain atlas
+Using Averages with a precomputed atlas
 ========================================
-In this example, we will map cells from human brain tumors (glioblastoma) onto an existing brain atlas in our precompiled `atlas landmarks <https://northstaratlas.github.io/atlas_landmarks/>`_.
+In this example, we will map cells from human brain tumors (glioblastoma) onto an existing brain atlas in our precompiled `atlas landmarks <https://northstaratlas.github.io/atlas_landmarks/>`_, using the `Averages` class:
 
 .. code-block:: python
 
@@ -16,7 +16,7 @@ In this example, we will map cells from human brain tumors (glioblastoma) onto a
    # We exclude the fetal cells to focus
    # on adult tissue. To keep the fetal
    # cells, just take away the _nofetal
-   model = northstar.Subsample(
+   model = northstar.Averages(
        atlas='Darmanis_2015_nofetal',
    )
 

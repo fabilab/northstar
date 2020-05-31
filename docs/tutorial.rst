@@ -8,7 +8,7 @@ the end of the tutorial, you can look at some :doc:`/examples` and at the detail
 Flowchart
 ---------
 .. image:: _static/tutorial_flowchart.png
-   :width: 300
+   :width: 240
    :alt: tutorial flowchart
 
 Intro: atlas landmarks

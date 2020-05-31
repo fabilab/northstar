@@ -1,7 +1,7 @@
-northstar\.Subsample
----------------------------
+northstar\.ClusterWithAnnotations
+---------------------------------
 
-.. autoclass:: northstar.Subsample
+.. autoclass:: northstar.ClusterWithAnnotations
     :members:
     :undoc-members:
     :show-inheritance:
@@ -9,4 +9,3 @@ northstar\.Subsample
     .. automethod:: __init__
     .. automethod:: fit
     .. automethod:: fit_transform
-    .. automethod:: embed

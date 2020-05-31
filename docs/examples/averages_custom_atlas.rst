@@ -1,4 +1,4 @@
-Mapping data onto custom atlas
+Fetch a precompiled atlas landmark
 ========================================
 In this example, we will map cells onto a custom atlas, using the `Averages` class:
 
@@ -7,56 +7,35 @@ In this example, we will map cells onto a custom atlas, using the `Averages` cla
    import anndata
    import northstar
 
-   # Read in the new data to be annotated
-   # Here we assume it's a loom file, but
-   # of course it can be whatever format
-   newdata = anndata.read_loom('...')
+   # Initialize the class
+   af = northstar.AtlasFetcher()
 
-   # Read in the atlas with annotations
-   atlas_full = anndata.read_loom('...')
+   # Get a list of the available landmarks
+   landmarks = af.list_atlases()
 
-   # Make sure the 'CellType' column is set
-   # if it has another name, rename it
-   atlas_full.obs['CellType'] = atlas_full.obs['cluster'].astype(str)
-
-   # Subsample the atlas, we don't need
-   # 1M cells to find out 5 cell types
-   atlas_ave = northstar.average_atlas(
-       atlas_full,
+   # Get one of them
+   atlas_sub = af.fetch_atlas(
+       'Darmanis_2015',
+       kind='subsample',
    )
 
-   # Prepare the classifier
-   # We exclude the fetal cells to focus
-   # on adult tissue. To keep the fetal
-   # cells, just take away the _nofetal
-   # It is common to balance all cell types
-   # with the same number of cells to keep
-   # a high resolution in the PC space,
-   model = northstar.Averages(
-       atlas=atlas_ave,
-       n_cells_per_type=20,
-   )
-
-   # Run the classification
-   model.fit(newdata)
-
-   # Get the inferred cell types
-   cell_types_newdata = model.membership
-
-   # Get UMAP coordinates of the atlas
-   # and new data (joint embedding)
-   embedding = model.embed('umap')
-
-Notice that the `n_cells_per_type=20` is an easy way to balance the importance of each cell type in the final PC space, however it is not absolutely necessary. In fact, a larger number for some cell types will increase their weight in the PC space and therefore might increase the ability of assign cells to those types. The easiest way to use unbalanced averages is to do as follows:
+You can also fetch multiple atlases at once. They will be merged together. Because not all genes are present in all atlases, you can decide what to do for the genes that are missing from some atlases. In this example, we keep all genes and, for each atlas, we pad the missing genes with zeros.
 
 .. code-block:: python
 
-   # Let's assume you are most interested in B cells and T cells
-   atlas_ave.obs['NumberOfCells'] = 20
-   atlas_ave.obs.loc[['B cell', 'T cell'], 'NumberOfCells'] = 100
+   import anndata
+   import northstar
 
-   model = northstar.Averages(
-       atlas=atlas_ave,
+   # Initialize the class
+   af = northstar.AtlasFetcher()
+
+   # Get a list of the available landmarks
+   landmarks = af.list_atlases()
+
+   # Get two atlases (merged)
+   atlas_sub = af.fetch_multiple_atlases(
+       ['Darmanis_2015', 'Enge_2017'],
+       kind='subsample',
+       join='union',
    )
 
-Notice that we omitted the `n_cells_per_type` argument in this case. The rest of the code stays the same.

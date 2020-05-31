@@ -6,4 +6,6 @@ API
 
    api/averages
    api/subsample
+   api/cluster_with_annotations
+   api/fetch_atlas
    api/*

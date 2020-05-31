@@ -7,4 +7,6 @@ northstar\.Averages
     :show-inheritance:
 
     .. automethod:: __init__
-    .. automethod:: __call__
+    .. automethod:: fit
+    .. automethod:: fit_transform
+    .. automethod:: embed

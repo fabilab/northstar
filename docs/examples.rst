@@ -13,3 +13,7 @@ You can use a custom atlas:
 You can also harmonize your atlas and target dataset (to be annotated) with another tool and then use northstar for clustering only. The advantage is that northstar's clustering algorithm is aware of the atlas annotations, therefore it is guaranteed to neither split not merge atlas cell types:
 
 - :doc:`External data harmonization <examples/external_harmonization>`
+
+You can also use northstar just as an API interface to our precompiled list of annotated atlases. This can be used to download averages and subsamples (we call them **atlas landmarks**) and use them to do whatever you want (e.g. classify using another tool, harmonize, look up marker genes, etc):
+
+- :doc:`Fetch a precompiled atlas landmark <examples/fetch_atlas>`

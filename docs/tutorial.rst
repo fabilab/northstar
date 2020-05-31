@@ -13,33 +13,33 @@ Flowchart
 
 Short version
 ----------------
-
 .. code-block:: python
-  import anndata
-  import northstar
 
-  # Load new dataset
-  dataset = anndata.read_loom('GBM_data.loom', sparse=False)
+   import anndata
+   import northstar
 
-  # Set gene names
-  dataset.var_names = dataset.var['GeneName']
+   # Load new dataset
+   dataset = anndata.read_loom('GBM_data.loom', sparse=False)
 
-  # Normalize
-  dataset.X = 1e6 * (dataset.X.T / dataset.X.sum(axis=1)).T
+   # Set gene names
+   dataset.var_names = dataset.var['GeneName']
 
-  # Choose atlas
-  atlas = 'Darmanis_2015_nofetal'
+   # Normalize
+   dataset.X = 1e6 * (dataset.X.T / dataset.X.sum(axis=1)).T
 
-  # Prepare classifier
-  model = northstar.Subsample(
-      atlas=atlas,
-      )
+   # Choose atlas
+   atlas = 'Darmanis_2015_nofetal'
 
-  # Run classifier
-  model.fit()
+   # Prepare classifier
+   model = northstar.Subsample(
+       atlas=atlas,
+       )
 
-  # Extract result
-  cell_types = model.membership
+   # Run classifier
+   model.fit()
+
+   # Extract result
+   cell_types = model.membership
 
 Intro: atlas landmarks
 --------------------------------

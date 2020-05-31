@@ -2,8 +2,8 @@ Tutorial
 ========
 Thank you for looking into `northstar`! This tutorial guides you through a typical use of
 the package to annotate your single cell dataset based on one or more cell atlases. At
-the end of the tutorial, you should be able to navigate the other docs yourself (see
-:doc:`/api`).
+the end of the tutorial, you can look at some :doc:`/examples` and at the detailed
+:doc:`/api` documentation.
 
 Start off: atlas landmarks
 --------------------------------
@@ -32,31 +32,58 @@ Then we need to prepare the new single cell dataset to annotate. `northstar` acc
    make sure you do the same. Remember human genes all ALL CAPS but mouse genes are
    Capitalized only.
 
-For this tutorial, we will use pandas, so let's load the data e.g. from a CSV file:
+For this tutorial, we will use the glioblastoma data from `Darmanis et al. (2017) <https://www.cell.com/cell-reports/fulltext/S2211-1247(17)31462-6?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS2211124717314626%3Fshowall%3Dtrue>`_ which is made available for this tutorial as a `loom <http://loompy.org/>`_ file at `this address <https://cloudstor.aarnet.edu.au/plus/s/sOJgrj1Y8pj6pHB/download>`_.
+
+.. code-block:: python
+   import requests
+
+   response = requests.get('https://cloudstor.aarnet.edu.au/plus/s/sOJgrj1Y8pj6pHB/download')
+   with open('GBM_data.loom', 'wb') as f:
+       f.write(response.content)
+
+   del response
+
+.. note::
+   You can also download the file into the current folder using your browser, wget, curl, or whatever download manager. Just call the file `GBM_data.loom`.
 
 .. code-block:: python
 
-  # Assume the CSV already has genes as rows
-  dataset = pd.read_csv('mydataset.csv', sep=',', index_col=0)
+  dataset = anndata.read_loom('GBM_data.loom', sparse=False)
 
-If the dataset is in a `loom <http://loompy.org/>`_ file, we have to set the index and columns:
+Let's make sure gene names are used as columns of the AnnData table:
 
 .. code-block:: python
 
-  import loompy
+  dataset.var_names = dataset.var['GeneName']
 
-  # Assume the gene name is in an attribute called GeneName and the cell name in CellID
-  with loompy.connect('mydataset.loom') as ds:
-      dataset = pd.DataFrame(
-          data=ds[:, :],
-          index=ds.ra['GeneName'],
-          columns=ds.ca['CellID'],
-          )
+Two important points about scaling:
 
-Choose an atlas
+- **log**: `northstar` will take the logarithm of the counts when necessary. If your data is already
+  logged, undo the transformation (by exponentiating *and* subtracting any pseudocounts) before
+  using northstar.
+
+- **normalization**: `northstar` will look for overdispersed features in the new dataset prior to normalization.
+  It is therefore highly recommended to normalize your new data (e.g. by counts per million reads
+  or counts per 10,000 reads).
+
+.. code-block:: python
+
+  dataset.X = 1e6 * (dataset.X.T / dataset.X.sum(axis=1)).T
+
+.. note::
+   Forgetting to format the data according to the two rules above can lead to gross misclassification.
+   Even forgetting the pseudocounts in there will add a carpet of counts to all genes that make
+   the cell barely recognizable. `northstar` implement some simple heuristics to deal with this, but
+   it is best to not rely on them too heavily.
+
+Choose a precompiled atlas
 -------------------------------
 You can choose one of the available `atlas landmarks <https://northstaratlas.github.io/atlas_landmarks/>`_
-by name, e.g. `Darmanis_2015` is an early atlas of the human brain. `northstar` provides a class to explore our precompiled landmarks:
+by name, e.g. `Darmanis_2015` is an early atlas of the human brain, and `Darmanis_2015_nofetal` excludes fetal cells (our tutorial glioblastoma data are all adult tumors).
+
+Optional: exploring atlas landmarks
++++++++++++++++++++++++++++++++++++++++++
+`northstar` provides a class to explore our precompiled landmarks:
 
 .. code-block:: python
 
@@ -69,12 +96,18 @@ To list available atlases, just type:
 
    af.list_atlases()
 
-and to download one of them, for instance as a subsample:
+and to download one of them, for instance:
 
 .. code-block:: python
 
-   myatlas = af.fetch_atlas('Darmanis_2015', kind='subsample')
+   myatlas = af.fetch_atlas('Darmanis_2015_nofetal', kind='subsample')
+   
+.. note::
+  If you just use the name (string) of a precompiled atlas landmark in the
+  classifier (see below), the landmark will be automatically downloaded for you.
 
+Alternative: custom atlas
++++++++++++++++++++++++++++++++++++++++++
 You can also use a custom atlas. In that case, the atlas should be in an `AnnData` object (with rows as
 cells, genes as columns):
 
@@ -82,8 +115,6 @@ cells, genes as columns):
 `CellType` that describes for each cell its cell type.
 - If you plan to use the `Averages` class, the `AnnData` must have an `obs` column called `NumberOfCells` that is used to weight each cell type in the PCA. A value of 20 for all cell types is typical.
 
-Alternative: custom atlas
-----------------------------------------
 `northstar` provides a function to subsample an existing annotated dataset to small cell numbers within each cell type, ready for further use with the `Subsample` class. You data must be in an `AnnData` object. You can call it by:
 
 .. code-block:: python
@@ -122,6 +153,8 @@ This is where the actual computations happen:
 
   model.fit()
 
+Advanced: understanding the single steps
++++++++++++++++++++++++++++++++++++++++++
 If you are curious about the steps within `northstar`, you can call in your Jupyter notebook or ipython console:
 
 .. code-block:: python
@@ -145,7 +178,7 @@ This is a numpy array with the same length and order as your cells.
 
 
 Optional: embbedding
---------------------------------
++++++++++++++++++++++++++++++++++++++++++
 Embeddings in two dimensions are useful to characterize single cell data. Northstar merges the atlas subsample/averages and the new dataset into the same PC space, and it's easy to get an embedding of your data "into" the atlas:
 
 .. code-block:: python
@@ -157,7 +190,7 @@ Available embeddings are `tsne`, `umap`, and `pca`.
 
 
 Optional: closest atlas cell type
----------------------------------
++++++++++++++++++++++++++++++++++++++++++
 Sometimes you get novel clusters that do not match any atlas cell type. To start identifying
 those clusters, you can ask `northstar` what known atlas cell type they are most similar to.
 Here's the code to do that:
@@ -170,7 +203,7 @@ The output is a `pandas.Series` with the novel clusters as index and the closest
 types as values.
 
 Optional: custom data harmonization
------------------------------------
++++++++++++++++++++++++++++++++++++++++++
 `northstar` divides the cell classification task in two steps:
 
 1. Create a similarity graph that contains both the atlas and the new data

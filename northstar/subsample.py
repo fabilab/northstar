@@ -31,7 +31,7 @@ class Subsample(object):
             threshold_neighborhood=0.8,
             threshold_neighborhood_external=0.8,
             clustering_metric='cpm',
-            resolution_parameter=0.001,
+            resolution_parameter=0.003,
             normalize_counts=True,
             join='keep_first',
             ):

@@ -13,30 +13,15 @@ Flowchart
 
 Intro: atlas landmarks
 --------------------------------
-To transfer cell types from an atlas, you need a few cells or averages for each cell type
+To transfer cell types from an atlas, you need an average or small subsample of cells for each cell type
 within the atlas. We call these **atlas landmarks**. To keep things simple, in this tutorial
-we use precomputed landmarks from our `sister project <https://northstaratlas.github.io/atlas_landmarks/>`_.
-Alternatively, you can use a custom atlas with its landmarks, see the :doc:`api` documentation of
-classes :class:`.Averages` and :class:`.Subsample` for that advanced usage.
-
-For this tutorial, we will use the atlas `Darmanis_2015 <https://www.pnas.org/content/112/23/7285>`_.
-
+we use `precomputed landmarks <https://northstaratlas.github.io/atlas_landmarks/>`_, in particlar the brain atlas from `Darmanis_2015 <https://www.pnas.org/content/112/23/7285>`_. Custom atlases are supported (see below).
 
 Prepare your single cell dataset
 --------------------------------------
-Then we need to prepare the new single cell dataset to annotate. For this tutorial, we will use the glioblastoma data from `Darmanis et al. (2017) <https://www.cell.com/cell-reports/fulltext/S2211-1247(17)31462-6?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS2211124717314626%3Fshowall%3Dtrue>`_ which is made available for this tutorial as a `loom <http://loompy.org/>`_ file at `this address <https://cloudstor.aarnet.edu.au/plus/s/sOJgrj1Y8pj6pHB/download>`_.
+Then we need to prepare the new dataset to annotate. For this tutorial, we will use the glioblastoma data from `Darmanis et al. (2017) <https://www.cell.com/cell-reports/fulltext/S2211-1247(17)31462-6?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS2211124717314626%3Fshowall%3Dtrue>`_ which is made available for this tutorial as a `loom <http://loompy.org/>`_ file at `this address <https://cloudstor.aarnet.edu.au/plus/s/sOJgrj1Y8pj6pHB/download>`_: download that file into the current folder with the name `GBM_data.loom`.
 
-.. code-block:: python
-   import requests
-
-   response = requests.get('https://cloudstor.aarnet.edu.au/plus/s/sOJgrj1Y8pj6pHB/download')
-   with open('GBM_data.loom', 'wb') as f:
-       f.write(response.content)
-
-   del response
-
-.. note::
-   You can also download the file into the current folder using your browser, wget, curl, or whatever download manager. Just call the file `GBM_data.loom`.
+After the download is done, read it with `anndata <https://anndata.readthedocs.io/>`_:
 
 .. code-block:: python
 

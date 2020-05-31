@@ -25,5 +25,6 @@ In this example, we will create an atlas landmark, i.e. a compressed approximati
        n_cells=20,
    )
 
- .. note::
+
+.. note::
    Creating average landmarks does not normalize the cells to one another before averaging. This choice reproduces the null expectation of taking all sequencing reads from those cells and lumping them together. This is not wrong but might be a little naive for some situations. You are free to normalize your atlas before using `average_atlas` to weight each cell to your liking (e.g. counts per millions). `subsample_atlas` does not suffer from this ambiguity.

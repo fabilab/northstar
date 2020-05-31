@@ -5,7 +5,13 @@ the package to annotate your single cell dataset based on one or more cell atlas
 the end of the tutorial, you can look at some :doc:`/examples` and at the detailed
 :doc:`/api` documentation.
 
-Start off: atlas landmarks
+Flowchart
+---------
+.. image:: _static/tutorial_flowchart.png
+   :width: 300
+   :alt: tutorial flowchart
+
+Intro: atlas landmarks
 --------------------------------
 To transfer cell types from an atlas, you need a few cells or averages for each cell type
 within the atlas. We call these **atlas landmarks**. To keep things simple, in this tutorial
@@ -18,21 +24,7 @@ For this tutorial, we will use the atlas `Darmanis_2015 <https://www.pnas.org/co
 
 Prepare your single cell dataset
 --------------------------------------
-Then we need to prepare the new single cell dataset to annotate. `northstar` accepts two formats:
-
-1. a `pandas.DataFrame` with features/genes as rows and cells as columns.
-   
-2. an `anndata.Anndata` object. `Anndata <https://anndata.readthedocs.io/en/stable/>`_
-   enforces the opposite convention, so the rows/observation_names must be the cells and the
-   columns/variable_names must be the features/genes.
-   
-.. note::
-   `northstar` will take the intersection of your features names and the atlas features to
-   assign cell types. Most atlases use gene names instead of EnsemblIDs or other names, so
-   make sure you do the same. Remember human genes all ALL CAPS but mouse genes are
-   Capitalized only.
-
-For this tutorial, we will use the glioblastoma data from `Darmanis et al. (2017) <https://www.cell.com/cell-reports/fulltext/S2211-1247(17)31462-6?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS2211124717314626%3Fshowall%3Dtrue>`_ which is made available for this tutorial as a `loom <http://loompy.org/>`_ file at `this address <https://cloudstor.aarnet.edu.au/plus/s/sOJgrj1Y8pj6pHB/download>`_.
+Then we need to prepare the new single cell dataset to annotate. For this tutorial, we will use the glioblastoma data from `Darmanis et al. (2017) <https://www.cell.com/cell-reports/fulltext/S2211-1247(17)31462-6?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS2211124717314626%3Fshowall%3Dtrue>`_ which is made available for this tutorial as a `loom <http://loompy.org/>`_ file at `this address <https://cloudstor.aarnet.edu.au/plus/s/sOJgrj1Y8pj6pHB/download>`_.
 
 .. code-block:: python
    import requests
@@ -56,7 +48,13 @@ Let's make sure gene names are used as columns of the AnnData table:
 
   dataset.var_names = dataset.var['GeneName']
 
-Two important points about scaling:
+.. note::
+   `northstar` will take the intersection of your features names and the atlas features to
+   assign cell types. Most atlases use gene names instead of EnsemblIDs or other names, so
+   make sure you do the same. Remember human genes all ALL CAPS but mouse genes are
+   Capitalized only.
+
+We need to normalize the dataset:
 
 - **log**: `northstar` will take the logarithm of the counts when necessary. If your data is already
   logged, undo the transformation (by exponentiating *and* subtracting any pseudocounts) before
@@ -72,11 +70,8 @@ Two important points about scaling:
 
 .. note::
    Forgetting to format the data according to the two rules above can lead to gross misclassification.
-   Even forgetting the pseudocounts in there will add a carpet of counts to all genes that make
-   the cell barely recognizable. `northstar` implement some simple heuristics to deal with this, but
-   it is best to not rely on them too heavily.
 
-Choose a precompiled atlas
+Choose an annotated atlas
 -------------------------------
 You can choose one of the available `atlas landmarks <https://northstaratlas.github.io/atlas_landmarks/>`_
 by name, e.g. `Darmanis_2015` is an early atlas of the human brain, and `Darmanis_2015_nofetal` excludes fetal cells (our tutorial glioblastoma data are all adult tumors).
@@ -131,7 +126,7 @@ Remember that the metadata column `CellType` is required anyway to use northstar
    myatlas.obs['CellType'] = myatlas.obs[my_other_column]
 
 
-Create an instance of northstar
+Prepare the classifier
 -------------------------------
 Let's assume you want to use the `.Subsample` class. You can create an instance of the class
 as follows:
@@ -145,7 +140,7 @@ as follows:
       new_data=dataset,
       )
 
-Call the cell classifier
+Classify your cells
 ------------------------
 This is where the actual computations happen:
 
@@ -176,6 +171,9 @@ This is a numpy array with the same length and order as your cells.
 .. note::
    You can also run the classifier and exctract the result all at once using `model.fit_transform()`.
 
+Downstream analysis
+-----------------------
+`northstar`'s main job is done with the cell type classification. Here some common downstream steps.
 
 Optional: embbedding
 +++++++++++++++++++++++++++++++++++++++++
@@ -226,15 +224,15 @@ For advanced users, it is possible to use a custom approach to step 1 and only u
 where `graph` must be a `igraph.Graph` instance from `python-igraph <https://igraph.org/>`_ or a dense or sparse boolean square matrix representing the adjacency matrix of the graph (i.e. it has nonzeros on on `graph[i , j]` if cell `i` and cell `j` are neighbors).
 
 
-Where to go from here
+Next steps
 ---------------------
-This concludes this short tutorial that showcases the main usage of `northstar`. You can
-browse the :doc:`/api` page for more detailed information such as how to combine atlases,
-specify only certain cell types within one or multiple atlases, and use custom atlases.
+Browse the :doc:`/examples` and :doc:`/api` pages for more information.
 
+Conclusion
+---------------------
 We hope `northstar` helps you understand your tissue sample and do not hesitate to open an
 `issue on github <https://github.com/iosonofabio/northstar/issues>`_ if you have trouble.
-If `northstar` was useful for a publication, please consider citing us on `bioRxiv <https://www.biorxiv.org/content/10.1101/820928v2>`.
+If `northstar` was useful for a publication, please consider citing us on `bioRxiv <https://www.biorxiv.org/content/10.1101/820928v2>`_.
 
 .. toctree::
    :hidden:

@@ -11,6 +11,36 @@ Flowchart
    :width: 240
    :alt: tutorial flowchart
 
+Short version
+----------------
+
+.. code-block:: python
+  import anndata
+  import northstar
+
+  # Load new dataset
+  dataset = anndata.read_loom('GBM_data.loom', sparse=False)
+
+  # Set gene names
+  dataset.var_names = dataset.var['GeneName']
+
+  # Normalize
+  dataset.X = 1e6 * (dataset.X.T / dataset.X.sum(axis=1)).T
+
+  # Choose atlas
+  atlas = 'Darmanis_2015_nofetal'
+
+  # Prepare classifier
+  model = northstar.Subsample(
+      atlas=atlas,
+      )
+
+  # Run classifier
+  model.fit()
+
+  # Extract result
+  cell_types = model.membership
+
 Intro: atlas landmarks
 --------------------------------
 To transfer cell types from an atlas, you need an average or small subsample of cells for each cell type
@@ -113,16 +143,14 @@ Remember that the metadata column `CellType` is required anyway to use northstar
 
 Prepare the classifier
 -------------------------------
-Let's assume you want to use the `.Subsample` class. You can create an instance of the class
-as follows:
+Let's use the `Subsample` class:
 
 .. code-block:: python
 
   import northstar
 
   model = northstar.Subsample(
-      atlas='Darmanis_2015',
-      new_data=dataset,
+      atlas='Darmanis_2015_nofetal',
       )
 
 Classify your cells

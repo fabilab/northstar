@@ -94,7 +94,7 @@ html_theme = 'alabaster'
 # documentation.
 #
 html_theme_options = {
-        'github_user': 'iosonofabio',
+        'github_user': 'northstaratlas',
         'github_repo': project_name,
         'github_banner': True,
         'travis_button': True,

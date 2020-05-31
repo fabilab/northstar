@@ -44,7 +44,7 @@ The key class is `ClusterWithAnnotations`, which takes two required arguments:
 
 Although this example uses a sparse adjacency matrix, you can also use an `igraph` graph instead. A typical way to create a graph from a list of `edges` is:
 
-..code-block:: python
+.. code-block:: python
 
    import igraph as ig
 

@@ -1,10 +1,12 @@
 Examples
 --------------------------------------
 Northstar has two main classes to use averages or subsamples of cell atlases:
+
 - :doc:`Averages with precomputed atlas <examples/averages_precomputed_atlas>`
 - :doc:`Subsample with precomputed atlas <examples/subsample_precomputed_atlas>`
 
 You can use a custom atlas:
+
 - :doc:`Averages with custom atlas <examples/averages_custom_atlas>`
 - :doc:`Subsample with custom atlas <examples/subsample_custom_atlas>`
 

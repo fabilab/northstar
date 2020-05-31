@@ -39,3 +39,5 @@ You can also fetch multiple atlases at once. They will be merged together. Becau
        join='union',
    )
 
+.. note::
+   The atlas landmark in outpt is an instance of anndata.AnnData, with genes as rows and cells or cell types as colums.

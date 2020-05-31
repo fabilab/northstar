@@ -21,10 +21,10 @@ Short version
    # Load new dataset
    dataset = anndata.read_loom('GBM_data.loom', sparse=False)
 
-   # Set gene names
+   # Set gene names (if needed)
    dataset.var_names = dataset.var['GeneName']
 
-   # Normalize
+   # Normalize (if needed)
    dataset.X = 1e6 * (dataset.X.T / dataset.X.sum(axis=1)).T
 
    # Choose atlas

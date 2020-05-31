@@ -82,7 +82,7 @@ cells, genes as columns):
 `CellType` that describes for each cell its cell type.
 - If you plan to use the `Averages` class, the `AnnData` must have an `obs` column called `NumberOfCells` that is used to weight each cell type in the PCA. A value of 20 for all cell types is typical.
 
-Create an atlas from an existing dataset
+Alternative: custom atlas
 ----------------------------------------
 `northstar` provides a function to subsample an existing annotated dataset to small cell numbers within each cell type, ready for further use with the `Subsample` class. You data must be in an `AnnData` object. You can call it by:
 

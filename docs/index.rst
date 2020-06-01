@@ -54,6 +54,7 @@ It is recommended that you install python-igraph and leidenalg using `pip`. Howe
 
 Usage example
 -------------
+Also see our :doc:`tutorial`.
 
 .. code-block:: python
 
@@ -69,14 +70,11 @@ Usage example
   
   # Initialize northstar classes
   model = northstar.Averages(
-          atlas='Darmanis_2015_nofetal',
-          new_dataset,
-          n_neighbors=5,
-          n_pcs=10,
+          atlas=atlas,
           )
   
   # Run the classifier
-  model.fit()
+  model.fit(new_dataset)
   
   # Get the cluster memberships for the new cells
   membership = model.membership

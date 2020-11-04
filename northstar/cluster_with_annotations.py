@@ -79,7 +79,7 @@ class ClusterWithAnnotations(object):
         N = g.vcount()
 
         opt = leidenalg.Optimiser()
-        is_member_fixed = [int(i < n_fixed) for i in range(N)]
+        is_membership_fixed = [int(i < n_fixed) for i in range(N)]
 
         # NOTE: initial membership is singletons except for atlas nodes, which
         # get the membership they have.
@@ -110,7 +110,8 @@ class ClusterWithAnnotations(object):
                 'clustering_metric not understood: {:}'.format(self.metric))
 
         # Run modified Leiden here
-        opt.optimise_partition(partition, is_member_fixed=is_member_fixed)
+        opt.optimise_partition(partition,
+                               is_membership_fixed=is_membership_fixed)
 
         # Exctract result
         membership = partition.membership[n_fixed:]

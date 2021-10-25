@@ -27,7 +27,7 @@ if [ $TRAVIS_OS_NAME != 'linux' ]; then
   exit 0
 fi
 if [ $TRAVIS_PYTHON_VERSION != '3.8' ]; then
-  echo "Not Python 3.7, exit"
+  echo "Not Python 3.8, exit"
   exit 0
 fi
 

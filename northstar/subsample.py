@@ -8,8 +8,14 @@ import warnings
 import numpy as np
 import pandas as pd
 import scipy as sp
-from anndata import AnnData
+from anndata import AnnData, concat
 import leidenalg
+
+try:
+    import scanpy
+except ImportError:
+    scanpy = None
+
 from .fetch_atlas import AtlasFetcher
 from .cluster_with_annotations import ClusterWithAnnotations
 
@@ -34,6 +40,7 @@ class Subsample(object):
             resolution_parameter=0.003,
             normalize_counts=True,
             join='keep_first',
+            atlas_annotation_column='CellType',
             ):
         '''Prepare the model for cell annotation
 
@@ -65,12 +72,14 @@ class Subsample(object):
 
              The second possibility is to use a custom atlas (e.g. some
              unpublished data). 'atlas' must be an AnnData object with cells as
-             rows and genes as columns and one cell metadata column 'CellType'
-             describing the cell type. In other words:
+             rows and genes as columns and one cell metadata column 
+             describing the cell type. If the "atlas_annotation_column" is not
+             set,
 
                  adata.obs['CellType']
 
-             must exist.
+             must exist. If you set that option manually, the obs colunm with
+             that name must exist instead.
 
             n_features_per_cell_type (int): number of features marking each
              fixed column (atlas cell type).
@@ -122,6 +131,9 @@ class Subsample(object):
              other atlases with zeros, 'union' pads every atlas that is missing
              a feature and 'intersection' only keep features that are in all
              atlases.
+
+            atlas_annotation_column (str): The name of the obs column with
+             the atlas annotations (default: 'CellType').
         '''
 
         self.atlas = atlas
@@ -139,6 +151,7 @@ class Subsample(object):
         self.resolution_parameter = resolution_parameter
         self.normalize_counts = normalize_counts
         self.join = join
+        self.atlas_annotation_column = atlas_annotation_column
 
     def fit(self, new_data):
         '''Run with subsamples of the atlas
@@ -210,8 +223,9 @@ class Subsample(object):
             pass
 
         elif isinstance(at, AnnData):
-            if 'CellType' not in at.obs:
-                raise AttributeError('atlas must have a "CellType" obs column')
+            if self.atlas_annotation_column not in at.obs:
+                raise AttributeError('atlas does not have a "{:}" obs column'.format(
+                    self.atlas_annotation_column))
 
         else:
             raise ValueError('Atlas not formatted correctly')
@@ -329,7 +343,7 @@ class Subsample(object):
 
     def prepare_feature_selection(self):
         # Cell names and types
-        self.cell_types_atlas = self.atlas.obs['CellType'].values
+        self.cell_types_atlas = self.atlas.obs[self.atlas_annotation_column].values
         self.cell_names_atlas = self.atlas.obs_names.values
         self.cell_names_newdata = self.new_data.obs_names.values
 
@@ -424,28 +438,44 @@ class Subsample(object):
         N = self.n_total
         N1 = self.n_atlas
 
-        # This is the largest memory footprint of northstar
-        matrix = np.empty((N, L), dtype=np.float32)
-
         # Find the feature indices for atlas
         ind_features_atlas = pd.Series(
             np.arange(len(self.features_atlas)),
             index=self.features_atlas,
             ).loc[features].values
-        matrix[:N1] = self.atlas[:, ind_features_atlas].X.toarray()
 
         # Find the feature indices for new data
         ind_features_newdata = pd.Series(
             np.arange(len(self.features_newdata)),
             index=self.features_newdata,
             ).loc[features].values
-        matrix[N1:] = self.new_data[:, ind_features_newdata].X.toarray()
 
-        # The normalization function also sets pseudocounts
+        # This is the largest memory footprint of northstar
+        # Try using sparse matrices if the data is using them already
+        adata_merge = concat(
+            [self.atlas[:, ind_features_atlas],
+             self.new_data[:, ind_features_newdata]],
+        )
+        self.adata_merge = adata_merge
+
         if self.normalize_counts:
-            matrix = 1e6 * (matrix.T / (matrix.sum(axis=1) + 0.1)).T
-
-        self.matrix = matrix
+            if scanpy is not None:
+                scanpy.pp.normalize_total(
+                    adata_merge,
+                    target_sum=1e6,
+                    inplace=True,
+                )
+            else:
+                # The normalization function should not set pseudocounts
+                matrix = adata_merge.X
+                coverage = matrix.sum(axis=1)
+                # Note if cells have no reads
+                cells_no_reads = coverage == 0
+                if cells_no_reads.sum():
+                    print('Some cells have no reads in the feature selected space')
+                coverage[cells_no_reads] = 1
+                matrix = 1e6 * (matrix.T / coverage).T
+                self.adata_merge.X = matrix
 
     def compute_pca(self):
         '''Compute k nearest neighbors from a matrix with fixed nodes
@@ -465,7 +495,7 @@ class Subsample(object):
         '''
         from sklearn.decomposition import PCA
 
-        matrix = self.matrix
+        matrix = self.adata_merge.X
         n_fixed = self.n_atlas
         n_pcs = self.n_pcs
 
@@ -480,7 +510,10 @@ class Subsample(object):
                  'remaining eigenvalues will be zero'))
 
         # 0. take log
-        matrix = np.log10(matrix + 0.1)
+        if scanpy is not None:
+            scanpy.pp.log1p(matrix, base=10)
+        else:
+            matrix = np.log1p(matrix) / np.log(10)
 
         # 1. whiten
         Xnorm = (matrix - matrix.mean(axis=0)) / matrix.std(axis=0, ddof=0)
@@ -509,7 +542,7 @@ class Subsample(object):
         from scipy.spatial.distance import pdist, squareform
         import igraph as ig
 
-        matrix = self.matrix
+        matrix = self.adata_merge.X
         k = self.n_neighbors
         ke = self.n_neighbors_external
         metric = self.distance_metric
@@ -593,7 +626,7 @@ class Subsample(object):
         '''Estimate atlas cell type closest to each new cluster'''
         from scipy.spatial.distance import cdist
 
-        matrix = self.matrix
+        matrix = self.adata_merge.X
         n_fixed = self.n_atlas
         metric = self.distance_metric
         cell_types = self.cell_types_atlas
@@ -604,11 +637,11 @@ class Subsample(object):
         L = matrix.shape[1]
         avg_new = np.empty((N, L), np.float32)
         for i, ct in enumerate(ct_new):
-            avg_new[:, i] = self.matrix[self.membership == ct].mean(axis=0)
+            avg_new[:, i] = matrix[self.membership == ct].mean(axis=0)
 
         avg_atl = np.empty((len(cell_types), L), np.float32)
         for i, ct in enumerate(cell_types):
-            avg_atl[:, i] = self.matrix[self.membership[:n_fixed] == ct].mean(axis=0)
+            avg_atl[:, i] = matrix[self.membership[:n_fixed] == ct].mean(axis=0)
 
         # Calculate distance matrix between new and old in the high-dimensional
         # feature-selected space
@@ -662,7 +695,7 @@ class Subsample(object):
             index=index,
             columns=columns,
             )
-        res['CellType'] = list(self.cell_types_atlas) + list(self.membership)
+        res[self.atlas_annotation_column] = list(self.cell_types_atlas) + list(self.membership)
         res['Dataset'] = (['Atlas'] * self.n_atlas) + (['New'] * self.n_newdata)
 
         return res

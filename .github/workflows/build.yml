@@ -16,7 +16,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    name: Build on ${{ matrix.os }} (${{ matrix.python-version }}, scanpy: ${{ matrix.scanpy }})
+    #name: Build on ${{ matrix.os }} (${{ matrix.python-version }}, scanpy: ${{ matrix.scanpy }})
 
     steps:
       - uses: actions/checkout@v3

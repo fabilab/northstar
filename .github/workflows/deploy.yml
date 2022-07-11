@@ -27,3 +27,7 @@ jobs:
 
       - name: Deploy
         run: bash .deploy.sh
+        env:
+          TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+          TWINE_PASSWORD_PYPI: ${{ secrets.TWINE_PASSWORD_PYPI }}
+          TWINE_PASSWORD_TESTPYPI: ${{ secrets.TWINE_PASSWORD_TESTPYPI }}

@@ -36,7 +36,10 @@ echo "TWINE_REPOSITORY=$TWINE_REPOSITORY"
 echo "TWINE_USERNAME=$TWINE_USERNAME"
 echo "TWINE_PASSWORD=$TWINE_PASSWORD"
 pip --version
+# Turns out twine needs this
+pip install typing-extensions
 pip install twine
+
 
 # Build source
 python setup.py sdist --dist-dir dist/

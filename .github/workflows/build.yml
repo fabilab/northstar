@@ -1,42 +1,35 @@
 name: Build and test, upload to PyPI on release
 
 on: [push, pull_request]
-env:
-  CIBW_TEST_COMMAND: "cd {project} && python -m pytest tests"
-  CIBW_TEST_EXTRAS: "test"
-  CIBW_SKIP: "*musllinux*"
-  CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
-  CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
-  CIBW_MANYLINUX_PYPY_X86_64_IMAGE: "manylinux2014"
-  CIBW_MANYLINUX_PYPY_I686_IMAGE: "manylinux2014"
 
 jobs:
   build_linux:
     name: Build on Linux (${{ matrix.wheel_arch }})
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
 
     steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/setup-python@v2
-        name: Install Python
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install deps
-        run: .install_deps.sh
+        run: bash .install_deps.sh
 
       - name: Build
-        run: .install.sh
+        run: bash .install.sh
 
       - name: Test
-        run: .test.sh
+        run: bash .test.sh
 
   build_macos:
     name: Build wheels on macOS (${{ matrix.wheel_arch }})
-    runs-on: macos-10.15
+    runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v2

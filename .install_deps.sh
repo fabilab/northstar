@@ -56,4 +56,8 @@ pip install python-igraph
 echo "Install leidnalg"
 pip install leidenalg
 
+if [ $USE_SCANPY == 'yes' ]; then
+ pip install scanpy
+fi
+
 # TODO: add scanpy conditionally

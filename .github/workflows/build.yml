@@ -10,6 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10"]
+        scanpy: ["no", "yes"]
 
     steps:
       - uses: actions/checkout@v3
@@ -20,6 +21,8 @@ jobs:
 
       - name: Install deps
         run: bash .install_deps.sh
+        env:
+          USE_SCANPY: ${{ matrix.scanpy }}
 
       - name: Build
         run: bash .install.sh

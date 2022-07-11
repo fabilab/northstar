@@ -41,6 +41,8 @@ class Subsample(object):
             normalize_counts=True,
             join='keep_first',
             atlas_annotation_column='CellType',
+            fraction_similar_types=0.1,
+            n_features_similar_types=0,
             ):
         '''Prepare the model for cell annotation
 
@@ -72,7 +74,7 @@ class Subsample(object):
 
              The second possibility is to use a custom atlas (e.g. some
              unpublished data). 'atlas' must be an AnnData object with cells as
-             rows and genes as columns and one cell metadata column 
+             rows and genes as columns and one cell metadata column
              describing the cell type. If the "atlas_annotation_column" is not
              set,
 
@@ -134,6 +136,12 @@ class Subsample(object):
 
             atlas_annotation_column (str): The name of the obs column with
              the atlas annotations (default: 'CellType').
+
+            fraction_similar_types (float): The fraction of atlas cell types
+             that are similar enough to require additional pairwise markers.
+
+            n_features_similar_types (int): The number of features used for
+             each pairwise comparison between similar atlas cell types.
         '''
 
         self.atlas = atlas
@@ -152,6 +160,8 @@ class Subsample(object):
         self.normalize_counts = normalize_counts
         self.join = join
         self.atlas_annotation_column = atlas_annotation_column
+        self.fraction_similar_types = fraction_similar_types
+        self.n_features_similar_types = n_features_similar_types
 
     def fit(self, new_data):
         '''Run with subsamples of the atlas
@@ -277,10 +287,14 @@ class Subsample(object):
         nf1 = self.n_features_per_cell_type
         nf2 = self.n_features_overdispersed
         nf3 = self.features_additional
-        if not isinstance(nf1, int):
+        nf4 = self.n_features_similar_types
+        if (not isinstance(nf1, int)) or (nf1 < 0):
             raise ValueError('n_features_per_cell_type must be an int >= 0')
-        if not isinstance(nf1, int):
+        if (not isinstance(nf2, int)) or (nf2 < 0):
             raise ValueError('n_features_overdispersed must be an int >= 0')
+        if (not isinstance(nf4, int)) or (nf4 < 0):
+            raise ValueError('n_features_similar_types must be an int >= 0')
+
         if (nf1 < 1) and (nf2 < 1) and (nf3 < 1):
             raise ValueError('No features selected')
 
@@ -358,6 +372,8 @@ class Subsample(object):
         Returns:
             ndarray of feature names.
         '''
+        from scipy.spatial.distance import pdist, squareform
+
         features_atlas = self.features_atlas
         features_newdata = self.features_newdata
         features_ovl = list(self.features_ovl)
@@ -369,19 +385,27 @@ class Subsample(object):
         cell_types = self.cell_types_atlas
         cell_typesu = list(np.unique(cell_types))
 
+        # This is the output data structure
         features = set()
 
-        # Atlas markers
+        # Atlas markers, one vs rest
         self.features_atlas_selected = {}
         if len(cell_typesu) > 1:
+            avg = np.zeros((len(cell_typesu), len(features_atlas)), np.float32)
             matrix = self.atlas.X
-            for au in cell_typesu:
+            for iau, au in enumerate(cell_typesu):
                 ic1 = (cell_types == au).nonzero()[0]
-                ic2 = (cell_types != au).nonzero()[0]
                 ge1 = np.asarray(matrix[ic1].mean(axis=0))
-                ge2 = np.asarray(matrix[ic2].mean(axis=0))
                 if sp.sparse.issparse(matrix):
                     ge1 = ge1[0]
+                avg[iau] = ge1
+            self.atlas_averages = pd.DataFrame(avg, index=cell_typesu, columns=features_atlas)[features_ovl]
+
+            for iau, au in enumerate(cell_typesu):
+                ge1 = avg[iau]
+                ic2 = (cell_types != au).nonzero()[0]
+                ge2 = np.asarray(matrix[ic2].mean(axis=0))
+                if sp.sparse.issparse(matrix):
                     ge2 = ge2[0]
                 fold_change = np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1)
                 tmp = np.argsort(fold_change)[::-1]
@@ -395,6 +419,35 @@ class Subsample(object):
                 fa_au = set(features_atlas[ind_markers_atlas])
                 features |= fa_au
                 self.features_atlas_selected[au] = fa_au
+
+        # Atlas markers, pairwise for the closest categories
+        nmark = self.n_features_similar_types
+        nct = int(len(cell_typesu) * self.fraction_similar_types)
+        if (nmark > 0) and (nct > 0):
+            self.similar_types = []
+            dmat = squareform(pdist(avg))
+            # Sort the pairs of cell types by distance, skip the zeros, and
+            # remember the matrix is symmetric
+            tmp = np.argsort(dmat.ravel())[dmat.shape[0]:][:2*nct:2]
+            idx1, idx2 = np.unravel_index(tmp, dmat.shape)
+            for iau1, iau2 in zip(idx1, idx2):
+                self.similar_types.append((cell_typesu[iau1], cell_typesu[iau2]))
+                ge1 = avg[iau1]
+                ge2 = avg[iau2]
+                # NOTE: in this case, we do not care about up- or down-regulated
+                # The purpose is simply to distinguish the two cell types
+                # FIXME: actually we do, because of dropout
+                fold_change = np.abs(np.log2(ge1 + 0.1) - np.log2(ge2 + 0.1))
+                tmp = np.argsort(fold_change)[::-1]
+                # Add top markers in the intersection
+                ind_markers_atlas = []
+                for i in tmp:
+                    if features_atlas[i] in features_ovl:
+                        ind_markers_atlas.append(i)
+                    if len(ind_markers_atlas) == nmark:
+                        break
+                fa_au = set(features_atlas[ind_markers_atlas])
+                features |= fa_au
 
         # Unbiased on new data
         if nf2 > 0:
@@ -511,9 +564,13 @@ class Subsample(object):
 
         # 0. take log
         if scanpy is not None:
-            scanpy.pp.log1p(matrix, base=10)
+            matrix = scanpy.pp.log1p(matrix, base=10)
         else:
             matrix = np.log1p(matrix) / np.log(10)
+
+        # TODO: make dense here, peek at scanpy to see how they do it
+        if isinstance(matrix, sp.sparse.spmatrix):
+            matrix = matrix.toarray()
 
         # 1. whiten
         Xnorm = (matrix - matrix.mean(axis=0)) / matrix.std(axis=0, ddof=0)
@@ -539,7 +596,7 @@ class Subsample(object):
         2. calculate neighborhoods
         3. construct similarity graph from neighborhood lists
         '''
-        from scipy.spatial.distance import pdist, squareform
+        from scipy.spatial.distance import pdist, cdist, squareform
         import igraph as ig
 
         matrix = self.adata_merge.X
@@ -552,59 +609,135 @@ class Subsample(object):
         N, L = matrix.shape
         N1 = self.n_atlas
 
-        # 1. calculate distance matrix
-        # rvects is N x n_pcs. Let us calculate the end that includes only the free
-        # observations and then call cdist which kills the columns. The resulting
-        # matrix has dimensions N x N
-        dmat = squareform(pdist(rvects, metric=metric))
-        dmax = dmat.max()
-
-        # 2. calculate neighbors
-        neighbors = [[] for n1 in range(N)]
-        for i, drow in enumerate(dmat):
-            nbi = neighbors[i]
-            # set distance to self as a high number, to avoid self
-            drow[i] = dmax + 1
-
-            # Find largest k negative distances (k neighbors)
-            ind = np.argpartition(-drow, -k)[-k:]
-
-            # Discard the ones beyond threshold
-            ind = ind[drow[ind] <= threshold]
-
-            # Indices are not sorted within ind, we sort them to help
-            # debugging even though it is not needed
-            ind = ind[np.argsort(drow[ind])]
-            ind = list(ind)
+        # If scanpy is available, use it for the bulk connections.
+        # External links to atlas canbe done by hand because they are fewer
+        if scanpy is not None:
+            self.adata_merge.obsm['X_pca'] = rvects
+            scanpy.pp.neighbors(
+                    self.adata_merge,
+                    n_neighbors=k,
+                    n_pcs=rvects.shape[1],
+                    use_rep='X_pca',
+                    metric=metric,
+                )
+            # NOTE: we'll alter the sparse structure, so use lil
+            # That reflects in the raw data operations below
+            dmat = self.adata_merge.obsp['distances'].tolil()
+            cmat = self.adata_merge.obsp['connectivities'].tolil()
 
             # Additional neighbors from the atlas if requested
-            if (ke > 0) and (i >= N1):
-                drow = drow[:N1]
-                ind2 = np.argpartition(-drow, -ke)[-ke:]
-                ind2 = ind2[drow[ind2] <= threshold_external]
-                ind2 = ind2[np.argsort(drow[ind2])]
-                ind2 = list(ind2)
+            if ke > 0:
+                dmat2 = cdist(rvects[N1:], rvects[:N1], metric=metric)
+                # NOTE: Offset i by N1, dmat is only the rectangular slice
+                for i, drow in enumerate(dmat2, N1):
+                    ind2 = np.argpartition(-drow, -ke)[-ke:]
+                    ind2 = ind2[drow[ind2] <= threshold_external]
+                    ind2 = ind2[np.argsort(drow[ind2])]
+                    ind2 = list(ind2)
 
-                # Require mutual neighbors if requested
-                if self.external_neighbors_mutual:
-                    ind2 = [x for x in ind2 if i in neighbors[x]]
+                    # Require mutual neighbors if requested
+                    if self.external_neighbors_mutual:
+                        ind2 = [j for j in ind2 if dmat[j, i] > 0]
 
-                for i2 in ind2:
-                    if i2 not in ind:
-                        ind.append(i2)
+                    # Skip existing edges
+                    ind2 = [j for j in ind2 if dmat[i, j] == 0]
+                    for j in ind2:
+                        dmat[i, j] = drow[j]
 
-            nbi.extend(ind)
+                # Fix connectivity
+                # FIXME: double check connectivity algo (e.g. exp a la UMAP)
+                for i, drow in enumerate(dmat[N1:], N1):
+                    dat = np.asarray(drow.data[0])
+                    # A la UMAP, subtract shortest distance (local warping)...
+                    dat -= dat.min()
+                    # ...and then exponentiate
+                    eta = 1.  # FIXME: find decent number
+                    dat = np.exp(-dat / eta)
 
-        self.neighbors = neighbors
+                    # NOTE: no need to offset j, since the atlas comes first
+                    for j, conn in zip(drow.rows[0], dat):
+                        cmat[i, j] = conn
 
-        # Construct graph from the lists of neighbors
-        edges_d = set()
-        for i, neis in enumerate(neighbors):
-            for n in neis:
-                edges_d.add(frozenset((i, n)))
+            self.adata_merge.obsp['distances'] = dmat.tocsr()
+            self.adata_merge.obsp['connectivities'] = cmat.tocsr()
 
-        edges = [tuple(e) for e in edges_d]
-        self.graph = ig.Graph(n=N, edges=edges, directed=False)
+            # Build graph object
+            cmat = cmat.tocoo()
+            edges = [(i, j) for i, j in zip(cmat.row, cmat.col)]
+            weights = cmat.data
+            # NOTE: perhaps we should start using weights...
+            self.graph = ig.Graph(
+                n=N, edges=edges, directed=False,
+                edge_attrs={'weight': weights},
+            )
+
+        else:
+            # 1. calculate distance matrix
+            # rvects is N x n_pcs. Let us calculate the end that includes only the free
+            # observations and then call cdist which kills the columns. The resulting
+            # matrix has dimensions N x N
+            if N <= 10000:
+                dmat = squareform(pdist(rvects, metric=metric))
+                dmax = dmat.max()
+            # For large data sets, compute distances row by row to save memory
+            else:
+                dmat = None
+                dmax = None
+
+            # TODO: we could use some accurate stochastic algo here, such as LSH
+            # or the one scanpy is using. It makes no big difference whether the
+            # graph is exact or not
+
+            # 2. calculate neighbors
+            neighbors = [[] for n1 in range(N)]
+            for i, nbi in enumerate(neighbors):
+                if dmat is not None:
+                    drow = dmat[i]
+                    # set distance to self as a high number, to avoid self
+                    drow[i] = dmax + 1
+                else:
+                    drow = cdist(rvects, rvects[[i]], metric=metric)[:, 0]
+                    dmax = drow.max()
+
+                # Find largest k negative distances (k neighbors)
+                ind = np.argpartition(-drow, -k)[-k:]
+
+                # Discard the ones beyond threshold
+                ind = ind[drow[ind] <= threshold]
+
+                # Indices are not sorted within ind, we sort them to help
+                # debugging even though it is not needed
+                ind = ind[np.argsort(drow[ind])]
+                ind = list(ind)
+
+                # Additional neighbors from the atlas if requested
+                if (ke > 0) and (i >= N1):
+                    drow = drow[:N1]
+                    ind2 = np.argpartition(-drow, -ke)[-ke:]
+                    ind2 = ind2[drow[ind2] <= threshold_external]
+                    ind2 = ind2[np.argsort(drow[ind2])]
+                    ind2 = list(ind2)
+
+                    # Require mutual neighbors if requested
+                    if self.external_neighbors_mutual:
+                        ind2 = [x for x in ind2 if i in neighbors[x]]
+
+                    for i2 in ind2:
+                        if i2 not in ind:
+                            ind.append(i2)
+
+                nbi.extend(ind)
+
+            self.neighbors = neighbors
+
+            # Construct graph from the lists of neighbors
+            edges_d = set()
+            for i, neis in enumerate(neighbors):
+                for n in neis:
+                    edges_d.add(frozenset((i, n)))
+
+            edges = [tuple(e) for e in edges_d]
+            self.graph = ig.Graph(n=N, edges=edges, directed=False)
 
     def cluster_graph(self):
         '''Compute communities from a matrix with fixed nodes
@@ -621,6 +754,19 @@ class Subsample(object):
                 metric=self.clustering_metric,
             )
         self.membership = clu.fit_transform()
+
+        # Annotate the AnnData object with source and membership
+        N1 = self.n_atlas
+        self.adata_merge.obs['northstar_source'] = 'new'
+        self.adata_merge.obs['northstar_source'].iloc[:N1] = 'atlas'
+        source = self.adata_merge.obs['northstar_source']
+        source = pd.Series(data=pd.Categorical(source), index=source.index)
+        self.adata_merge.obs['northstar_source'] = source
+
+        annos = self.adata_merge.obs[self.atlas_annotation_column]
+        annos.iloc[N1:] = self.membership
+        annos = pd.Series(data=pd.Categorical(annos), index=annos.index)
+        self.adata_merge.obs[self.atlas_annotation_column] = annos
 
     def estimate_closest_atlas_cell_type(self):
         '''Estimate atlas cell type closest to each new cluster'''

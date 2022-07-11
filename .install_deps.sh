@@ -2,7 +2,8 @@
 echo "Prepare interpreter"
 if [ $TRAVIS_OS_NAME == 'linux' ]; then
   echo "Installing deps for linux"
-  # NOTE: leidenalg installs igraph (in a somewhat messy way for now)
+  echo "... none for now"
+  # NOTE: leidenalg installs igraph (in a somewhat messy way for now
   #sudo add-apt-repository -y ppa:igraph/ppa
   #sudo apt-get -qq update
   #sudo apt-get install igraph
@@ -23,8 +24,8 @@ elif [ $TRAVIS_OS_NAME == 'osx' ]; then
   source $HOME/miniconda/bin/activate
 
   # Make conda environment and activate
-  conda create -y -n travis python=$CONDA_PY
-  conda activate travis
+  conda create -y -n ci python=$CONDA_PY
+  conda activate ci
 
   # Use pip from conda
   conda install -y pip

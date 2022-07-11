@@ -7,11 +7,17 @@ echo "TAG1: $TAG1"
 echo "TAG2: $TAG2"
 echo "TAG3: $TAG3"
 
-if [ -z $TAG2 ]; then
+if [ -z ${TAG2} ]; then
   echo 'No TAG2, exit'
   exit 0;
 fi
-if [ $TAG1 != 'release' ] || [ "version = $TAG2" != $(cat northstar/_version.py) ]; then
+if [ ${TAG1} != 'release' ]; then
+  echo "Not a release tag, exit"
+  exit 0;
+fi
+VERSION_IN_FILE=$(cut -f2 -d'"' < northstar/_version.py)
+echo "northstar version in file: ${VERSION_IN_FILE}"
+if [ ${TAG2} != ${VERSION_IN_FILE} ]; then
   echo 'No release tag or wrong version, exit'
   exit 0;
 fi

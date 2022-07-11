@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "$TRAVIS_OS_NAME" == 'osx' ]; then
+if [ "$RUNNER_OS" == 'macOS' ]; then
   export PATH="$HOME/miniconda/bin:$PATH"
   source $HOME/miniconda/bin/activate
   conda activate ci

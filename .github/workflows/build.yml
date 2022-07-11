@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build_linux:
-    name: Build on Linux (${{ matrix.wheel_arch }})
+    name: Build on Ubuntu latest (${{ matrix.python-version }}, scanpy: ${{ matrix.scanpy }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,8 +32,10 @@ jobs:
 
   # Only Python 3.9 for mac, otherwise it takes forever
   build_macos:
-    name: Build wheels on macOS (${{ matrix.wheel_arch }})
+    name: Build on macOS latest (${{ matrix.python-version }}, scanpy: ${{ matrix.scanpy }})
     runs-on: macos-latest
+      matrix:
+        scanpy: ["no", "yes"]
 
     steps:
       - uses: actions/checkout@v2

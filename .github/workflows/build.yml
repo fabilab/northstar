@@ -13,10 +13,9 @@ jobs:
         include:
           - os: macos-latest
             python-version: '3.9'
+            scanpy: "yes"
 
     runs-on: ${{ matrix.os }}
-
-    #name: Build on ${{ matrix.os }} (${{ matrix.python-version }}, scanpy: ${{ matrix.scanpy }})
 
     steps:
       - uses: actions/checkout@v3

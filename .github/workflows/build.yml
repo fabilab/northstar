@@ -3,14 +3,20 @@ name: Build and test, upload to PyPI on release
 on: [push, pull_request]
 
 jobs:
-  build_linux:
-    name: Build on Ubuntu latest (${{ matrix.python-version }}, scanpy: ${{ matrix.scanpy }})
-    runs-on: ubuntu-latest
+  build:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python-version: ["3.7", "3.8", "3.9", "3.10"]
         scanpy: ["no", "yes"]
+        include:
+          - os: macos-latest
+            python-version: '3.9'
+
+    runs-on: ${{ matrix.os }}
+
+    name: Build on ${{ matrix.os }} (${{ matrix.python-version }}, scanpy: ${{ matrix.scanpy }})
 
     steps:
       - uses: actions/checkout@v3
@@ -30,26 +36,3 @@ jobs:
       - name: Test
         run: bash .test.sh
 
-  # Only Python 3.9 for mac, otherwise it takes forever
-  build_macos:
-    name: Build on macOS latest (${{ matrix.python-version }}, scanpy: ${{ matrix.scanpy }})
-    runs-on: macos-latest
-      matrix:
-        scanpy: ["no", "yes"]
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/setup-python@v2
-        name: Install Python
-        with:
-          python-version: '3.9'
-
-      - name: Install deps
-        run: bash .install_deps.sh
-
-      - name: Build
-        run: bash .install.sh
-
-      - name: Test
-        run: bash .test.sh

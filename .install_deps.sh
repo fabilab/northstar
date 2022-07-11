@@ -1,13 +1,13 @@
 #!/bin/bash
 echo "Prepare interpreter"
-if [ $TRAVIS_OS_NAME == 'linux' ]; then
+if [ $RUNNER_OS == 'Linux' ]; then
   echo "Installing deps for linux"
   echo "... none for now"
   # NOTE: leidenalg installs igraph (in a somewhat messy way for now
   #sudo add-apt-repository -y ppa:igraph/ppa
   #sudo apt-get -qq update
   #sudo apt-get install igraph
-elif [ $TRAVIS_OS_NAME == 'osx' ]; then
+elif [ $RUNNER_OS == 'macOS' ]; then
   echo "Find out OSX version"
   osx_version=$(sw_vers -productVersion)
   echo "OSX version: $osx_version"
@@ -32,28 +32,28 @@ elif [ $TRAVIS_OS_NAME == 'osx' ]; then
   pip --version
 
 else
-  echo "OS not recognized: $TRAVIS_OS_NAME"
+  echo "OS not recognized: $RUNNER_OS"
   exit 1
 fi
 
 # We do not need to actually install anything when deploying because
 # it is a pure python package
-if [ $TRAVIS_BUILD_STAGE_NAME != "Deploy" ]; then
-  echo "Installing Python dependencies"
-  pip install pytest
-  pip install pytest-cov
-  pip install coveralls
-  
-  pip install numpy
-  pip install scipy
-  pip install pandas
-  pip install scikit-learn
-  pip install loompy
-  pip install anndata
-  
-  echo "Install python-igraph. It takes care of installing the igraph C library"
-  pip install python-igraph
-  
-  echo "Install leidnalg"
-  pip install leidenalg
-fi
+echo "Installing Python dependencies"
+pip install pytest
+pip install pytest-cov
+pip install coveralls
+
+pip install numpy
+pip install scipy
+pip install pandas
+pip install scikit-learn
+pip install loompy
+pip install anndata
+
+echo "Install python-igraph. It takes care of installing the igraph C library"
+pip install python-igraph
+
+echo "Install leidnalg"
+pip install leidenalg
+
+# TODO: add scanpy conditionally

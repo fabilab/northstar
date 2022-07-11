@@ -40,10 +40,10 @@ jobs:
           python-version: '3.9'
 
       - name: Install deps
-        run: .install_deps.sh
+        run: bash .install_deps.sh
 
       - name: Build
-        run: .install.sh
+        run: bash .install.sh
 
       - name: Test
-        run: .test.sh
+        run: bash .test.sh

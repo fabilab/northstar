@@ -45,12 +45,14 @@ Dependencies
 - `python-igraph>=0.8.0`
 - `leidenalg>=0.8.0`
 
+It is recommended that you install python-igraph and leidenalg using `pip`. However, any installation (e.g. conda) that includes recent enough versions of both packages will work.
+
 Optional deps to use our online atlases:
 
 - `requests`
 - `loompy`
-
-It is recommended that you install python-igraph and leidenalg using `pip`. However, any installation (e.g. conda) that includes recent enough versions of both packages will work.
+- `scanpy` (reduces memory usage)
+- `pynndescent` (only useful if you also use scanpy)
 
 Usage example
 -------------
@@ -84,7 +86,7 @@ Citation
 -----------------------------------
 If you use this software please cite the following paper:
 
-Fabio Zanini*, Bojk A. Berghuis*, Robert C. Jones, Benedetta Nicolis di Robilant, Rachel Yuan Nong, Jeffrey Norton, Michael F. Clarke, Stephen R. Quake. **Northstar enables automatic classification of known and novel cell types from tumor samples.** bioRxiv 820928; doi: https://doi.org/10.1101/820928 
+Fabio Zanini*, Bojk A. Berghuis*, Robert C. Jones, Benedetta Nicolis di Robilant, Rachel Yuan Nong, Jeffrey Norton, Michael F. Clarke, Stephen R. Quake. **Northstar enables automatic classification of known and novel cell types from tumor samples.** Scientific Reports 10, Article number: 15251 (2020), DOI: https://doi.org/10.1038/s41598-020-71805-1 
 
 
 License

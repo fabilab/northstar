@@ -4,6 +4,7 @@
 # content:    Atlas subsampling
 __all__ = ['Subsample']
 
+import os
 import warnings
 import numpy as np
 import pandas as pd
@@ -11,10 +12,15 @@ import scipy as sp
 from anndata import AnnData, concat
 import leidenalg
 
-try:
-    import scanpy
-except ImportError:
+
+# scanpy can be skipped if requested
+if os.getenv('NORTHSTAR_SKIP_SCANPY') is not None:
     scanpy = None
+else:
+    try:
+        import scanpy
+    except ImportError:
+        scanpy = None
 
 from .fetch_atlas import AtlasFetcher
 from .cluster_with_annotations import ClusterWithAnnotations

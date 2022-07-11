@@ -44,12 +44,29 @@ pip install 'northstar[atlas-fetcher]'
 - `python-igraph>=0.8.0`
 - `leidenalg>=0.8.0`
 
+It is recommended that you install python-igraph and leidenalg using `pip`. However, any installation (e.g. conda) that includes recent enough versions of both packages should work.
+
 Optional deps to use our online atlases:
 
 - `requests`
 - `loompy`
+- `scanpy`
+- `pynndescent` (only useful if you use `scanpy` as well)
 
-It is recommended that you install python-igraph and leidenalg using `pip`. However, any installation (e.g. conda) that includes recent enough versions of both packages will work.
+If you have `scanpy` installed, `northstar` will use it to speed up a few operations (PCA, graph construction). You can turn this off in two ways:
+
+1. Uninstall `scanpy` is you don't need it for anything else, or
+2. Set the environment variable `NORTHSTAR_SKIP_SCANPY` to anything except empty string, e.g. in a notebook:
+
+```python
+import os
+os.environ['NORTHSTAR_SKIP_SCANPY'] = 'yes'
+import northstar as ns
+
+(rest of the notebook/script)
+```
+
+Hot-swapping between the two modes (w or w/o `scanpy`) is not currently supported.
 
 ## Usage
 See the paper below or the documentation for detailed instructions and examples. The simplest way to use `northstar` is to classify a new single cell dataset using one of the available atlases, e.g. `Darmanis_2015` on brain cells:
@@ -87,7 +104,7 @@ membership = model.membership
 ## Citation
 If you use this software please cite the following paper:
 
-Fabio Zanini\*, Bojk A. Berghuis\*, Robert C. Jones, Benedetta Nicolis di Robilant, Rachel Yuan Nong, Jeffrey Norton, Michael F. Clarke, Stephen R. Quake. **Northstar enables automatic classification of known and novel cell types from tumor samples.** bioRxiv 820928; doi: https://doi.org/10.1101/820928 
+Fabio Zanini\*, Bojk A. Berghuis\*, Robert C. Jones, Benedetta Nicolis di Robilant, Rachel Yuan Nong, Jeffrey Norton, Michael F. Clarke, Stephen R. Quake. **Northstar enables automatic classification of known and novel cell types from tumor samples.** Scientific Reports 10, Article number: 15251 (2020), DOI: https://doi.org/10.1038/s41598-020-71805-1
 
 ## License
 `northstar` is released under the MIT license.

@@ -30,6 +30,7 @@ jobs:
       - name: Test
         run: bash .test.sh
 
+  # Only Python 3.9 for mac, otherwise it takes forever
   build_macos:
     name: Build wheels on macOS (${{ matrix.wheel_arch }})
     runs-on: macos-latest

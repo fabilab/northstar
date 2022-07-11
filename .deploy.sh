@@ -1,12 +1,8 @@
 #!/bin/bash
 # only deploy builds for a release_<sematic-version>_RC?? tag to testpypi
-if [ -z $TRAVIS_TAG ]; then
-  echo 'No TRAVIS_TAG, exit'
-  exit 0
-fi
-TAG1=$(echo $TRAVIS_TAG | cut -f1 -d_)
-TAG2=$(echo $TRAVIS_TAG | cut -f2 -d_)
-TAG3=$(echo $TRAVIS_TAG | cut -f3 -d_)
+TAG1=$(echo $GITHUB_REF_NAME | cut -f1 -d_)
+TAG2=$(echo $GITHUB_REF_NAME | cut -f2 -d_)
+TAG3=$(echo $GITHUB_REF_NAME | cut -f3 -d_)
 echo "TAG1: $TAG1"
 echo "TAG2: $TAG2"
 echo "TAG3: $TAG3"
@@ -20,16 +16,6 @@ if [ $TAG1 != 'release' ] || [ "version = $TAG2" != $(cat northstar/_version.py)
   exit 0;
 fi
 VERSION=$TAG2
-
-# For now deploy only Linux Python 3.8 (it's pure Python)
-if [ $TRAVIS_OS_NAME != 'linux' ]; then
-  echo 'Not linux, exit'
-  exit 0
-fi
-if [ $TRAVIS_PYTHON_VERSION != '3.8' ]; then
-  echo "Not Python 3.8, exit"
-  exit 0
-fi
 
 # deploy onto pypitest unless you have no RC
 if [ -z $TAG3 ]; then

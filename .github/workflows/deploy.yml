@@ -1,0 +1,29 @@
+name: Build and test, upload to PyPI on release
+
+on:
+  push:
+    tags:        
+      - release_**
+
+
+jobs:
+  deploy:
+    name: Deploy to PyPI
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install deps
+        run: bash .install_deps.sh
+        env:
+          USE_SCANPY: 'no'
+
+      - name: Deploy
+        run: bash .deploy.sh

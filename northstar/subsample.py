@@ -6,6 +6,7 @@ __all__ = ['Subsample']
 
 import os
 import warnings
+import logging
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -49,6 +50,7 @@ class Subsample(object):
             atlas_annotation_column='CellType',
             fraction_similar_types=0.1,
             n_features_similar_types=0,
+            logging_level='warning',
             ):
         '''Prepare the model for cell annotation
 
@@ -121,9 +123,13 @@ class Subsample(object):
             threshold_neighborhood_external (float): do not consider distances
                 larger than this for external neighbors (if requested)
 
-            clustering_metric (str): 'cpm' (default, Cell Potts Model) or
-             'modularity'. Sets the type of partition used in the clustering
-             step.
+            clustering_metric (str): 'cpm' (default, Cell Potts Model),
+             'modularity', 'rbc', 'rber', 'significance', or 'surprise'. See
+             the `leidenalg` package for info:
+
+             https://leidenalg.readthedocs.io/en/latest/reference.html#mutablevertexpartition
+
+             Sets the type of partition used in the clustering step.
 
             resolution_parameter (float): number between 0 and 1 that sets
              how easy it is for the clustering algorithm to make new clusters
@@ -168,6 +174,8 @@ class Subsample(object):
         self.atlas_annotation_column = atlas_annotation_column
         self.fraction_similar_types = fraction_similar_types
         self.n_features_similar_types = n_features_similar_types
+        self.logging_level = logging_level
+        self._set_logging()
 
     def fit(self, new_data):
         '''Run with subsamples of the atlas
@@ -185,19 +193,32 @@ class Subsample(object):
             columns except the first n_fixed. The first n_fixed columns are
             assumes to have distinct memberships in the range [0, n_fixed - 1].
         '''
+        logger = logging.getLogger(__name__)
+
+        logger.info('Start fit...')
         self.new_data = new_data
 
+        logger.info('Check input arguments...')
         self._check_init_arguments()
+        logger.info('Fetch atlas if needed...')
         self.fetch_atlas_if_needed()
+        logger.info('Compute feature intersection...')
         self.compute_feature_intersection()
         self._check_feature_intersection()
+        logger.info('Prepare feature selection...')
         self.prepare_feature_selection()
+        logger.info('Select features...')
         self.select_features()
         self._check_feature_selection()
+        logger.info('Merge atlas and new data...')
         self.merge_atlas_newdata()
+        logger.info('Compute PCA...')
         self.compute_pca()
+        logger.info('Compute cell neighborhood (similarity) graph...')
         self.compute_similarity_graph()
+        logger.info('Cluster graph with constraints...')
         self.cluster_graph()
+        logger.info('Fit finished.')
 
     def fit_transform(self, new_data):
         '''Run with subsamples of the atlas and return the cell types
@@ -216,6 +237,10 @@ class Subsample(object):
         '''
         self.fit(new_data)
         return self.membership
+
+    def _set_logging(self):
+        logger = logging.getLogger(__name__)
+        logger.setLevel(self.logging_level.upper())
 
     def _check_init_arguments(self):
         # Check atlas

@@ -105,13 +105,39 @@ class ClusterWithAnnotations(object):
                     resolution_parameter=self.resolution_parameter,
                     initial_membership=initial_membership,
                     )
+        elif self.metric == 'rbc':
+            partition = leidenalg.RBConfigurationVertexPartition(
+                    g,
+                    resolution_parameter=self.resolution_parameter,
+                    initial_membership=initial_membership,
+                    )
+        elif self.metric == 'rber':
+            partition = leidenalg.RBERVertexPartition(
+                    g,
+                    resolution_parameter=self.resolution_parameter,
+                    initial_membership=initial_membership,
+                    )
+        elif self.metric == 'significance':
+            partition = leidenalg.SignificanceVertexPartition(
+                    g,
+                    resolution_parameter=self.resolution_parameter,
+                    initial_membership=initial_membership,
+                    )
+        elif self.metric == 'surprise':
+            partition = leidenalg.SurpriseVertexPartition(
+                    g,
+                    resolution_parameter=self.resolution_parameter,
+                    initial_membership=initial_membership,
+                    )
         else:
             raise ValueError(
                 'clustering_metric not understood: {:}'.format(self.metric))
 
         # Run modified Leiden here
-        opt.optimise_partition(partition,
-                               is_membership_fixed=is_membership_fixed)
+        opt.optimise_partition(
+                partition,
+                is_membership_fixed=is_membership_fixed,
+            )
 
         # Exctract result
         membership = partition.membership[n_fixed:]
